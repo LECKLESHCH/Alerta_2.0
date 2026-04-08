@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Kommersant.ru - Cybersecurity",
+    "url": "https://www.kommersant.ru/theme/1267"
+  },
+  {
+    "name": "Kaspersky.ru - Press Releases",
+    "url": "https://www.kaspersky.ru/about/press-releases"
+  },
+  {
+    "name": "SecurityLab.ru - News",
+    "url": "https://www.securitylab.ru/news/"
+  },
+  {
+    "name": "Comnews.ru - Information Security",
+    "url": "https://www.comnews.ru/information_security"
+  },
+  {
+    "name": "Infowatch.ru - Analytics",
+    "url": "https://www.infowatch.ru/analytics/novosti-ib"
+  },
+  {
+    "name": "Habr.com - Infosecurity News",
+    "url": "https://habr.com/ru/hubs/infosecurity/news/"
+  },
+  {
+    "name": "F6.ru - Media Center News",
+    "url": "https://www.f6.ru/media-center/news/"
+  },
+  {
+    "name": "1275.ru",
+    "url": "https://1275.ru/"
+  },
+  {
+    "name": "Infobezopasnost.ru - Blog News",
+    "url": "https://infobezopasnost.ru/blog/news/"
+  },
+  {
+    "name": "BleepingComputer - Security",
+    "url": "https://www.bleepingcomputer.com/news/security/"
+  },
+  {
+    "name": "SecurityWeek - Cyber News",
+    "url": "https://www.securityweek.com/"
+  },
+  {
+    "name": "The Hacker News",
+    "url": "https://thehackernews.com/"
+  }
+]

@@ -1,0 +1,31 @@
+.DS_Store
+.run/
+
+# Dependency directories
+node_modules/
+node_modules 2/
+backend/node_modules_corrupt_20260407/
+frontend/node_modules_old_retry/
+frontend/node_modules_old_retry2/
+
+# Build outputs
+dist/
+build/
+preview/
+tmp/
+
+# Local environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+*.log
+
+# Local secrets and machine-specific configs
+Telegram-OSINT-for-Cyber-Threat-Intelligence-Analysis-main/configs.py
+
+# Prevent nested git metadata from being committed
+backend/.git/
