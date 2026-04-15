@@ -92,6 +92,68 @@ export class Article {
 
   @Prop({ required: false })
   extracted_at: Date;
+
+  @Prop({ required: false, type: [String], default: [] })
+  cve_mentions: string[];
+
+  @Prop({ required: false, type: [String], default: [] })
+  vendor_candidates: string[];
+
+  @Prop({ required: false, type: [String], default: [] })
+  product_candidates: string[];
+
+  @Prop({ required: false, type: [String], default: [] })
+  technology_terms: string[];
+
+  @Prop({ required: false, type: [String], default: [] })
+  attack_techniques: string[];
+
+  @Prop({ required: false })
+  asset_type: string;
+
+  @Prop({ required: false })
+  threat_actor: string;
+
+  @Prop({ required: false })
+  malware_family: string;
+
+  @Prop({ required: false, type: [String], default: [] })
+  evidence_tokens: string[];
+
+  @Prop({ required: false })
+  interpretation_summary: string;
+
+  @Prop({ required: false, default: 0 })
+  interpretation_grounding_score: number;
+
+  @Prop({
+    required: false,
+    type: [
+      {
+        source: { type: String, default: 'NVD' },
+        reference_id: { type: String, default: '' },
+        score: { type: Number, default: 0 },
+        rationale: { type: String, default: '' },
+        base_score: { type: Number, default: null },
+        base_severity: { type: String, default: null },
+        vendors: { type: [String], default: [] },
+        products: { type: [String], default: [] },
+        cwes: { type: [String], default: [] },
+      },
+    ],
+    default: [],
+  })
+  interpreted_reference_matches: Array<{
+    source: string;
+    reference_id: string;
+    score: number;
+    rationale: string;
+    base_score: number | null;
+    base_severity: string | null;
+    vendors: string[];
+    products: string[];
+    cwes: string[];
+  }>;
 }
 
 export type ArticleDocument = Article & Document;

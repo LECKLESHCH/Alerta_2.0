@@ -31,10 +31,10 @@ else
   echo "Port 3001: free"
 fi
 
-if curl -fsS http://127.0.0.1:27017 >/dev/null 2>&1; then
-  echo "MongoDB: reachable on 27017"
+if port_in_use 27017; then
+  echo "MongoDB: listening on 27017"
 else
-  echo "MongoDB: not reachable on 27017"
+  echo "MongoDB: not listening on 27017"
 fi
 
 if curl -fsS http://127.0.0.1:6333/collections >/dev/null 2>&1; then

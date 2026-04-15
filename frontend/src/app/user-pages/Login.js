@@ -14,8 +14,17 @@ export class Login extends Component {
 
   componentDidMount() {
     if (isAuthenticated()) {
-      this.props.history.push('/dashboard');
+      this.redirectAfterLogin();
     }
+  }
+
+  getNextPath() {
+    const params = new URLSearchParams(this.props.location.search || '');
+    return params.get('next') || '/dashboard';
+  }
+
+  redirectAfterLogin() {
+    this.props.history.push(this.getNextPath());
   }
 
   handleChange = (event) => {
@@ -35,7 +44,7 @@ export class Login extends Component {
       });
 
       setAuthSession(authPayload);
-      this.props.history.push('/dashboard');
+      this.redirectAfterLogin();
     } catch (error) {
       this.setState({
         error: error.message || 'Не удалось выполнить вход',

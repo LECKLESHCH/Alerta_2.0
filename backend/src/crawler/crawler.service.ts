@@ -10,6 +10,7 @@ import * as path from 'path';
 import { chromium } from 'playwright'; // Импортируем Playwright
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { ReferenceIntelService } from '../reference-intel/reference-intel.service';
 
 const execFilePromise = promisify(execFile);
 
@@ -524,6 +525,287 @@ interface ThreatMetricsResult {
 
   llm_confidence: Score01;
   extracted_at: string;
+}
+
+interface InterpretationSignalsResult {
+  cve_mentions: string[];
+  vendor_candidates: string[];
+  product_candidates: string[];
+  technology_terms: string[];
+  attack_techniques: string[];
+  asset_type: string | null;
+  threat_actor: string | null;
+  malware_family: string | null;
+  evidence_tokens: string[];
+  interpretation_summary: string;
+}
+
+function normalizeStringArray(value: unknown, limit = 8): string[] {
+  if (!Array.isArray(value)) return [];
+
+  const out = new Set<string>();
+  value.forEach((item) => {
+    if (typeof item !== 'string') return;
+    const trimmed = item.trim();
+    if (!trimmed) return;
+    out.add(trimmed);
+  });
+
+  return [...out].slice(0, limit);
+}
+
+function normalizeOptionalString(value: unknown): string | null {
+  return typeof value === 'string' ? normalizeNullableString(value) : null;
+}
+
+function extractCveIds(text: string): string[] {
+  return Array.from(
+    new Set(
+      [...text.matchAll(/\bCVE-\d{4}-\d{4,7}\b/gi)].map((match) =>
+        match[0].toUpperCase(),
+      ),
+    ),
+  ).slice(0, 8);
+}
+
+function extractDomainLikeEntities(text: string): string[] {
+  return Array.from(
+    new Set(
+      [...text.matchAll(/\b[A-Za-z][A-Za-z0-9_-]*\.[A-Za-z][A-Za-z0-9.-]*\b/g)]
+        .map((match) => match[0])
+        .slice(0, 8),
+    ),
+  );
+}
+
+function extractBrandLikeEntities(text: string): string[] {
+  const stopwords = new Set([
+    'CVE',
+    'HTTP',
+    'URL',
+    'JSON',
+    'API',
+    'News',
+    'Times',
+    'Industry',
+    'Corporation',
+    'China',
+    'Russia',
+    'Ukraine',
+    'World',
+    'Bug',
+    'Bounty',
+    'Positive',
+  ]);
+  return Array.from(
+    new Set(
+      [...text.matchAll(/\b[A-Z][A-Za-z0-9.+_-]{2,}\b/g)]
+        .map((match) => match[0])
+        .filter((item) => !stopwords.has(item)),
+    ),
+  ).slice(0, 8);
+}
+
+function collectKeywordHits(
+  text: string,
+  rules: Array<[string, string]>,
+  limit = 8,
+): string[] {
+  const lower = text.toLowerCase();
+  const out = new Set<string>();
+  rules.forEach(([needle, label]) => {
+    if (lower.includes(needle)) {
+      out.add(label);
+    }
+  });
+  return [...out].slice(0, limit);
+}
+
+function normalizeInterpretationSignals(
+  raw: unknown,
+  context: { title: string; text: string; category: string | null },
+): InterpretationSignalsResult {
+  const combinedText = `${context.title}\n${context.text}`;
+  const heuristicVendors = Array.from(
+    new Set([
+      ...extractDomainLikeEntities(combinedText),
+      ...extractBrandLikeEntities(combinedText),
+    ]),
+  ).slice(0, 8);
+  const heuristicTechTerms = collectKeywordHits(
+    combinedText,
+    [
+      ['vpn', 'VPN'],
+      ['роутер', 'router'],
+      ['маршрутиз', 'router'],
+      ['сервер', 'server'],
+      ['портал', 'web portal'],
+      ['веб', 'web application'],
+      ['брауз', 'browser'],
+      ['scada', 'SCADA'],
+      ['кии', 'critical infrastructure'],
+      ['active directory', 'Active Directory'],
+      ['directory', 'Active Directory'],
+      ['iam', 'IAM'],
+      ['token', 'token'],
+      ['credential', 'credential'],
+      ['учетн', 'credential'],
+      ['почт', 'email'],
+      ['email', 'email'],
+      ['api', 'API'],
+      ['cloud', 'cloud'],
+      ['облач', 'cloud'],
+      ['database', 'database'],
+      ['баз дан', 'database'],
+      ['router', 'router'],
+      ['firewall', 'firewall'],
+      ['межсет', 'firewall'],
+      ['exchange', 'Exchange'],
+    ],
+    10,
+  );
+  const heuristicTechniques = collectKeywordHits(
+    combinedText,
+    [
+      ['remote code execution', 'remote code execution'],
+      ['rce', 'remote code execution'],
+      ['phishing', 'phishing email'],
+      ['фишинг', 'phishing email'],
+      ['credential', 'credential theft'],
+      ['утеч', 'data exfiltration'],
+      ['leak', 'data exfiltration'],
+      ['ddos', 'ddos'],
+      ['ransom', 'ransomware deployment'],
+      ['шифроваль', 'ransomware deployment'],
+      ['token', 'token leakage'],
+      ['supply chain', 'supply chain compromise'],
+      ['подрядчик', 'third-party compromise'],
+      ['эксплуатац', 'exploit in the wild'],
+      ['взлом', 'unauthorized access'],
+      ['компрометац', 'compromise'],
+      ['0-day', 'zero-day exploitation'],
+      ['zero-day', 'zero-day exploitation'],
+    ],
+    8,
+  );
+  const heuristicEvidence = collectKeywordHits(
+    combinedText,
+    [
+      ['cve-', 'cve'],
+      ['rce', 'rce'],
+      ['фишинг', 'phishing'],
+      ['credential', 'credential'],
+      ['утеч', 'data leak'],
+      ['ddos', 'ddos'],
+      ['ransom', 'ransomware'],
+      ['token', 'token'],
+      ['iam', 'iam'],
+      ['scada', 'scada'],
+      ['роутер', 'router'],
+      ['маршрутиз', 'router'],
+      ['почт', 'email'],
+    ],
+    10,
+  );
+
+  const lowerCombined = combinedText.toLowerCase();
+  const heuristicAssetType = (() => {
+    if (lowerCombined.includes('scada') || lowerCombined.includes('асу'))
+      return 'SCADA';
+    if (
+      lowerCombined.includes('роутер') ||
+      lowerCombined.includes('маршрутиз') ||
+      lowerCombined.includes('router')
+    ) {
+      return 'network appliance';
+    }
+    if (lowerCombined.includes('vpn')) return 'VPN';
+    if (
+      lowerCombined.includes('портал') ||
+      lowerCombined.includes('веб') ||
+      lowerCombined.includes('web')
+    ) {
+      return 'web application';
+    }
+    if (lowerCombined.includes('почт') || lowerCombined.includes('email'))
+      return 'почта';
+    if (lowerCombined.includes('баз дан') || lowerCombined.includes('database'))
+      return 'database';
+    if (lowerCombined.includes('сервер') || lowerCombined.includes('server'))
+      return 'server';
+    if (lowerCombined.includes('account') || lowerCombined.includes('учетн'))
+      return 'account';
+    return null;
+  })();
+
+  const heuristicSummary =
+    context.category !== null
+      ? `Интерпретация опирается на категорию ${context.category}.`
+      : 'Интерпретация требует сопоставления с эталонной базой.';
+
+  const base: InterpretationSignalsResult = {
+    cve_mentions: extractCveIds(`${context.title}\n${context.text}`),
+    vendor_candidates: heuristicVendors,
+    product_candidates: heuristicVendors,
+    technology_terms: heuristicTechTerms,
+    attack_techniques: heuristicTechniques,
+    asset_type: heuristicAssetType,
+    threat_actor: null,
+    malware_family: null,
+    evidence_tokens: heuristicEvidence,
+    interpretation_summary: heuristicSummary,
+  };
+
+  if (!isRecord(raw)) {
+    return base;
+  }
+
+  return {
+    cve_mentions: Array.from(
+      new Set([
+        ...base.cve_mentions,
+        ...normalizeStringArray(raw['cve_mentions']).map((item) =>
+          item.toUpperCase(),
+        ),
+      ]),
+    ).slice(0, 8),
+    vendor_candidates: Array.from(
+      new Set([
+        ...base.vendor_candidates,
+        ...normalizeStringArray(raw['vendor_candidates']),
+      ]),
+    ).slice(0, 8),
+    product_candidates: Array.from(
+      new Set([
+        ...base.product_candidates,
+        ...normalizeStringArray(raw['product_candidates']),
+      ]),
+    ).slice(0, 8),
+    technology_terms: Array.from(
+      new Set([
+        ...base.technology_terms,
+        ...normalizeStringArray(raw['technology_terms'], 10),
+      ]),
+    ).slice(0, 10),
+    attack_techniques: Array.from(
+      new Set([
+        ...base.attack_techniques,
+        ...normalizeStringArray(raw['attack_techniques']),
+      ]),
+    ).slice(0, 8),
+    asset_type: normalizeOptionalString(raw['asset_type']),
+    threat_actor: normalizeOptionalString(raw['threat_actor']),
+    malware_family: normalizeOptionalString(raw['malware_family']),
+    evidence_tokens: Array.from(
+      new Set([
+        ...base.evidence_tokens,
+        ...normalizeStringArray(raw['evidence_tokens'], 10),
+      ]),
+    ).slice(0, 10),
+    interpretation_summary:
+      normalizeOptionalString(raw['interpretation_summary']) ??
+      base.interpretation_summary,
+  };
 }
 
 function normalizeTargetSector(value: unknown): TargetSector {
@@ -1444,6 +1726,8 @@ function buildHeuristicClassification(input: {
 @Injectable()
 export class CrawlerService implements OnModuleInit {
   private readonly logger = new Logger(CrawlerService.name);
+  private readonly runtimeLogs: string[] = [];
+  private readonly maxRuntimeLogs = 500;
   private sources: Source[] = [];
   private qdrantClient: QdrantClient;
   private embeddings: OpenAIEmbeddings;
@@ -1458,12 +1742,62 @@ export class CrawlerService implements OnModuleInit {
   private crawlConcurrency: number;
   private sourceConcurrency: number;
   private crawlAllRunning = false;
+  private activeCrawlScope: 'all' | 'sites' | null = null;
   private readonly inFlightUrls = new Set<string>();
 
   constructor(
     @InjectModel(Article.name) private articleModel: Model<Article>,
     private configService: ConfigService,
-  ) {}
+    private readonly referenceIntelService: ReferenceIntelService,
+  ) {
+    this.wrapLogger();
+  }
+
+  private wrapLogger() {
+    const originalLog = this.logger.log.bind(this.logger);
+    const originalWarn = this.logger.warn.bind(this.logger);
+    const originalError = this.logger.error.bind(this.logger);
+
+    this.logger.log = ((message: unknown, ...optionalParams: unknown[]) => {
+      this.pushRuntimeLog('LOG', message, optionalParams);
+      return originalLog(message as never, ...(optionalParams as never[]));
+    }) as typeof this.logger.log;
+
+    this.logger.warn = ((message: unknown, ...optionalParams: unknown[]) => {
+      this.pushRuntimeLog('WARN', message, optionalParams);
+      return originalWarn(message as never, ...(optionalParams as never[]));
+    }) as typeof this.logger.warn;
+
+    this.logger.error = ((message: unknown, ...optionalParams: unknown[]) => {
+      this.pushRuntimeLog('ERROR', message, optionalParams);
+      return originalError(message as never, ...(optionalParams as never[]));
+    }) as typeof this.logger.error;
+  }
+
+  private pushRuntimeLog(
+    level: 'LOG' | 'WARN' | 'ERROR',
+    message: unknown,
+    optionalParams: unknown[] = [],
+  ) {
+    const renderedMessage = [message, ...optionalParams]
+      .flat()
+      .filter((item) => item !== undefined && item !== null && item !== '')
+      .map((item) => {
+        if (item instanceof Error) {
+          return item.stack || item.message;
+        }
+
+        return typeof item === 'string' ? item : JSON.stringify(item);
+      })
+      .join(' ');
+
+    const timestamp = new Date().toLocaleTimeString('ru-RU');
+    this.runtimeLogs.push(`[${timestamp}] ${level}: ${renderedMessage}`);
+
+    if (this.runtimeLogs.length > this.maxRuntimeLogs) {
+      this.runtimeLogs.splice(0, this.runtimeLogs.length - this.maxRuntimeLogs);
+    }
+  }
 
   onModuleInit() {
     this.loadSources();
@@ -1582,6 +1916,7 @@ export class CrawlerService implements OnModuleInit {
     }
 
     this.crawlAllRunning = true;
+    this.activeCrawlScope = this.activeCrawlScope || 'all';
     this.logger.log('--- START CRAWLING ---');
     try {
       await runWithConcurrency(
@@ -1595,6 +1930,7 @@ export class CrawlerService implements OnModuleInit {
       this.logger.log('--- CRAWLING FINISHED ---');
     } finally {
       this.crawlAllRunning = false;
+      this.activeCrawlScope = null;
     }
   }
 
@@ -1603,6 +1939,17 @@ export class CrawlerService implements OnModuleInit {
       return false;
     }
 
+    this.activeCrawlScope = 'all';
+    void this.crawlAllSources();
+    return true;
+  }
+
+  startSiteCrawl(): boolean {
+    if (this.crawlAllRunning) {
+      return false;
+    }
+
+    this.activeCrawlScope = 'sites';
     void this.crawlAllSources();
     return true;
   }
@@ -1611,8 +1958,21 @@ export class CrawlerService implements OnModuleInit {
     return this.crawlAllRunning;
   }
 
+  getActiveCrawlScope(): 'all' | 'sites' | null {
+    return this.activeCrawlScope;
+  }
+
   getSourceCount(): number {
     return this.sources.length;
+  }
+
+  getRecentLogs(limit = 200) {
+    const lines = this.runtimeLogs.slice(-limit);
+
+    return {
+      lines: lines.length ? lines : ['Логи текущего процесса пока пусты.'],
+      source: 'runtime-buffer',
+    };
   }
 
   async crawlArticle(url: string) {
@@ -2426,6 +2786,115 @@ text=${text.length > 700 ? text.substring(0, 700) : text}`;
         metricsError = lastMetricsErr;
       }
 
+      const interpretationPrompt = `
+Верни ровно один JSON в одну строку. Без Markdown.
+
+Задача: извлечь признаки из киберинцидента для последующего сопоставления с эталонной БД CVE/NVD.
+Не придумывай vendor/product/CVE, если их нет в тексте.
+
+Схема:
+{"cve_mentions":[string],"vendor_candidates":[string],"product_candidates":[string],"technology_terms":[string],"attack_techniques":[string],"asset_type":string|null,"threat_actor":string|null,"malware_family":string|null,"evidence_tokens":[string],"interpretation_summary":string}
+
+Правила:
+- cve_mentions: только реальные CVE вида CVE-YYYY-NNNN.
+- vendor_candidates: вендоры/организации/платформы, прямо упомянутые в статье.
+- product_candidates: продукты, сервисы, решения, платформы, прямо упомянутые в статье.
+- technology_terms: 3-8 технических терминов для поиска по эталонной базе.
+- attack_techniques: короткие фразы наподобие "remote code execution", "credential theft", "phishing email", "token leakage".
+- asset_type: сервер|веб-приложение|почта|VPN|SCADA|IAM|endpoint|cloud workload|network appliance|database|account|null.
+- threat_actor: название группы/кампании, если прямо указано.
+- malware_family: название вредоносного ПО/бэкдора/ботнета, если прямо указано.
+- evidence_tokens: самые важные токены/артефакты из текста, которые помогают матчингу.
+- interpretation_summary: коротко на русском, почему эту угрозу можно сопоставлять с эталонной БД.
+
+Вход:
+title=${articleData.title ?? ''}
+type=${classification.type}
+category=${classification.category ?? 'null'}
+subcategory=${classification.subcategory ?? 'null'}
+text=${snippet}
+      `;
+
+      const interpretationPromptShort = `
+Один JSON в одну строку. Только факты из текста, ничего не выдумывай.
+{"cve_mentions":[string],"vendor_candidates":[string],"product_candidates":[string],"technology_terms":[string],"attack_techniques":[string],"asset_type":string|null,"threat_actor":string|null,"malware_family":string|null,"evidence_tokens":[string],"interpretation_summary":string}
+title=${articleData.title ?? ''}
+category=${classification.category ?? 'null'}
+text=${text.length > 700 ? text.substring(0, 700) : text}
+      `;
+
+      let interpretationRaw: string | null = null;
+      let interpretationError: string | null = null;
+      let interpretationSignals = normalizeInterpretationSignals(null, {
+        title: articleData.title ?? '',
+        text,
+        category: classification.category,
+      });
+
+      if (classification.type === 'news') {
+        interpretationError = 'Skipped interpretation for news article';
+      } else if (skipMetricsLlm) {
+        interpretationError = `Skipped interpretation LLM because classification failed: ${llmError}`;
+      } else {
+        const interpretationPrompts = [
+          interpretationPrompt,
+          interpretationPromptShort,
+        ];
+        let lastInterpretationError: string | null = null;
+        for (const prompt of interpretationPrompts) {
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            try {
+              const response = await withTimeout(
+                () => this.chatOpenAI.invoke(prompt),
+                this.classifierTimeoutMs,
+                `Interpretation request for ${url}`,
+              );
+              interpretationRaw = normalizeModelContent(response?.content);
+              if (!interpretationRaw) throw new Error('Empty model content');
+              const parsed = extractJsonObjectFromText(interpretationRaw);
+              interpretationSignals = normalizeInterpretationSignals(parsed, {
+                title: articleData.title ?? '',
+                text,
+                category: classification.category,
+              });
+              lastInterpretationError = null;
+              break;
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              lastInterpretationError = msg;
+              if (!shouldRetryClassificationError(msg)) break;
+              await sleep(250 * (attempt + 1));
+            }
+          }
+          if (lastInterpretationError === null) break;
+        }
+        interpretationError = lastInterpretationError;
+      }
+
+      const interpretationResult =
+        classification.type === 'threat'
+          ? await this.referenceIntelService.interpretThreat({
+              title: articleData.title ?? '',
+              text,
+              category: translateCategoryToRussian(classification.category),
+              subcategory: translateSubcategoryToRussian(
+                classification.subcategory,
+              ),
+              severity: classification.severity,
+              classification_reasoning: classification.reasoning,
+              attack_vector: metrics.attack_vector,
+              target_sector: metrics.target_sector,
+              cve_mentions: interpretationSignals.cve_mentions,
+              vendor_candidates: interpretationSignals.vendor_candidates,
+              product_candidates: interpretationSignals.product_candidates,
+              technology_terms: interpretationSignals.technology_terms,
+              attack_techniques: interpretationSignals.attack_techniques,
+              asset_type: interpretationSignals.asset_type,
+              threat_actor: interpretationSignals.threat_actor,
+              malware_family: interpretationSignals.malware_family,
+            })
+          : { grounding_score: 0, matches: [] };
+
       try {
         fs.mkdirSync(path.dirname(metricsLogPath), { recursive: true });
         fs.appendFileSync(
@@ -2441,6 +2910,11 @@ text=${text.length > 700 ? text.substring(0, 700) : text}`;
             classification_category: classification.category,
             metrics_error: metricsError,
             metrics_raw: metricsRaw ?? '',
+            interpretation_error: interpretationError,
+            interpretation_raw: interpretationRaw ?? '',
+            interpretation_cves: interpretationSignals.cve_mentions,
+            interpretation_grounding_score:
+              interpretationResult.grounding_score,
             ...metrics,
           })}\n`,
           'utf8',
@@ -2548,6 +3022,19 @@ text=${text.length > 700 ? text.substring(0, 700) : text}`;
         time_to_exploit: metrics.time_to_exploit,
         llm_confidence: metrics.llm_confidence,
         extracted_at: new Date(metrics.extracted_at),
+        cve_mentions: interpretationSignals.cve_mentions,
+        vendor_candidates: interpretationSignals.vendor_candidates,
+        product_candidates: interpretationSignals.product_candidates,
+        technology_terms: interpretationSignals.technology_terms,
+        attack_techniques: interpretationSignals.attack_techniques,
+        asset_type: interpretationSignals.asset_type,
+        threat_actor: interpretationSignals.threat_actor,
+        malware_family: interpretationSignals.malware_family,
+        evidence_tokens: interpretationSignals.evidence_tokens,
+        interpretation_summary: interpretationSignals.interpretation_summary,
+        interpretation_grounding_score:
+          interpretationResult.grounding_score,
+        interpreted_reference_matches: interpretationResult.matches,
       });
 
       // сохранение в MongoDB

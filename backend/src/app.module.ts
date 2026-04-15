@@ -3,11 +3,20 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ArticleModule } from './article/article.module';
 import { AuthModule } from './auth/auth.module';
-import { CrawlerModule } from './crawler/crawler.module';
-import { ThreatPredictorModule } from './threat-predictor/threat-predictor.module';
+import { ObjectModule } from './objects/object.module';
+import { ReferenceIntelModule } from './reference-intel/reference-intel.module';
 import * as path from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+
+const optionalFeatureModules = [
+  ...(process.env.ALERTA_ENABLE_CRAWLER !== '0'
+    ? [require('./crawler/crawler.module').CrawlerModule]
+    : []),
+  ...(process.env.ALERTA_ENABLE_THREAT_PREDICTOR === '1'
+    ? [require('./threat-predictor/threat-predictor.module').ThreatPredictorModule]
+    : []),
+];
 
 @Module({
   imports: [
@@ -26,8 +35,9 @@ import { AppService } from './app.service';
     }),
     AuthModule,
     ArticleModule,
-    CrawlerModule,
-    ThreatPredictorModule,
+    ObjectModule,
+    ReferenceIntelModule,
+    ...optionalFeatureModules,
   ],
   controllers: [AppController],
   providers: [AppService],

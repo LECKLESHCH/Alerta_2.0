@@ -31,6 +31,14 @@ async function request(url, options = {}) {
 
   if (response.status === 401) {
     clearAuthSession();
+    if (typeof window !== 'undefined') {
+      const loginPath = '/user-pages/login-1';
+      const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (window.location.pathname !== loginPath) {
+        const nextUrl = `${loginPath}?next=${encodeURIComponent(currentPath)}`;
+        window.location.assign(nextUrl);
+      }
+    }
   }
 
   if (!response.ok) {
@@ -53,4 +61,8 @@ export async function apiPost(url, payload = {}) {
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+export async function apiDelete(url) {
+  return request(url, { method: 'DELETE' });
 }

@@ -1,625 +1,567 @@
 import React, { Component } from 'react';
 import { Form } from 'react-bootstrap';
-import DatePicker from "react-datepicker";
-import bsCustomFileInput from 'bs-custom-file-input';
+import { createObjectPassport } from '../../api/objects';
+
+const objectTypes = [
+  'АСУ ТП',
+  'ЦОД',
+  'Сервисный портал',
+  'Сегмент сети',
+  'АРМ оператора',
+  'Система мониторинга',
+];
+
+const industries = [
+  'Энергетика',
+  'Транспорт',
+  'Финансы',
+  'Госсектор',
+  'Телеком',
+  'Промышленность',
+];
+
+const criticalityClasses = ['К1', 'К2', 'К3'];
+const maturityLevels = ['Низкая', 'Средняя', 'Высокая'];
+
+const initialFormState = {
+  objectName: '',
+  objectType: 'ЦОД',
+  criticalityClass: 'К2',
+  industry: 'Энергетика',
+  subIndustry: '',
+  region: '',
+  ownerUnit: '',
+  businessCriticality: 0.8,
+  impactConfidentiality: 0.7,
+  impactIntegrity: 0.9,
+  impactAvailability: 1,
+  downtimeTolerance: '',
+  attackSurface: 0.6,
+  remoteAccessLevel: 0.7,
+  integrationLevel: '',
+  internetExposed: true,
+  contractorAccess: false,
+  userInteractionDependency: false,
+  isIcs: true,
+  segmentationLevel: 0.6,
+  legacyShare: 0.4,
+  cloudPresence: 0.2,
+  securityMaturity: 'Средняя',
+  monitoringMaturity: 'Средняя',
+  patchMaturity: 'Средняя',
+  comments: '',
+};
+
+function renderOptions(items) {
+  return items.map((item) => (
+    <option key={item} value={item}>
+      {item}
+    </option>
+  ));
+}
+
+function SectionCard({ title, description, children }) {
+  return (
+    <div className="card">
+      <div className="card-body">
+        <h4 className="card-title">{title}</h4>
+        <p className="card-description">{description}</p>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ScoreField({
+  id,
+  name,
+  label,
+  value,
+  onChange,
+  helperText,
+}) {
+  return (
+    <Form.Group>
+      <div className="d-flex align-items-center justify-content-between">
+        <label htmlFor={id} className="mb-1">
+          {label}
+        </label>
+        <span className="text-muted">{Number(value).toFixed(1)}</span>
+      </div>
+      <Form.Control
+        type="range"
+        className="form-control-range"
+        id={id}
+        name={name}
+        min="0"
+        max="1"
+        step="0.1"
+        value={value}
+        onChange={onChange}
+      />
+      {helperText ? <small className="text-muted">{helperText}</small> : null}
+    </Form.Group>
+  );
+}
 
 export class BasicElements extends Component {
   state = {
-    startDate: new Date()
+    form: { ...initialFormState },
+    isSaving: false,
+    saveError: '',
+    saveSuccess: '',
+    savedObjectId: '',
   };
- 
-  handleChange = date => {
+
+  handleInputChange = (event) => {
+    const { name, type, checked, value } = event.target;
+    const nextValue = type === 'checkbox' ? checked : value;
+
+    this.setState((prevState) => ({
+      form: {
+        ...prevState.form,
+        [name]: type === 'range' ? Number(nextValue) : nextValue,
+      },
+      saveError: '',
+      saveSuccess: '',
+    }));
+  };
+
+  handleReset = () => {
     this.setState({
-      startDate: date
+      form: { ...initialFormState },
+      isSaving: false,
+      saveError: '',
+      saveSuccess: '',
+      savedObjectId: '',
     });
   };
 
-  componentDidMount() {
-    bsCustomFileInput.init()
-  }
+  handleSubmit = async (event) => {
+    event.preventDefault();
+
+    this.setState({
+      isSaving: true,
+      saveError: '',
+      saveSuccess: '',
+      savedObjectId: '',
+    });
+
+    try {
+      const saved = await createObjectPassport(this.state.form);
+
+      this.setState({
+        isSaving: false,
+        saveError: '',
+        saveSuccess: 'Паспорт КИИ сохранён в базе данных.',
+        savedObjectId: saved?._id || '',
+      });
+    } catch (error) {
+      this.setState({
+        isSaving: false,
+        saveError: error.message || 'Не удалось сохранить паспорт КИИ.',
+        saveSuccess: '',
+        savedObjectId: '',
+      });
+    }
+  };
 
   render() {
+    const { form, isSaving, saveError, saveSuccess, savedObjectId } = this.state;
+
     return (
       <div>
         <div className="page-header">
-          <h3 className="page-title"> Паспорт объекта КИИ </h3>
+          <h3 className="page-title">Паспорт КИИ</h3>
           <nav aria-label="breadcrumb">
             <ol className="breadcrumb">
-              <li className="breadcrumb-item"><a href="!#" onClick={event => event.preventDefault()}>Модель объекта</a></li>
-              <li className="breadcrumb-item active" aria-current="page">Паспорт объекта</li>
+              <li className="breadcrumb-item">
+                <a href="!#" onClick={(event) => event.preventDefault()}>
+                  Модель объекта
+                </a>
+              </li>
+              <li className="breadcrumb-item active" aria-current="page">
+                Паспорт КИИ
+              </li>
             </ol>
           </nav>
         </div>
-        <div className="row">
-          <div className="col-md-6 grid-margin stretch-card">
-            <div className="card">
-              <div className="card-body">
-                <h4 className="card-title">Карточка объекта</h4>
-                <p className="card-description"> Базовые атрибуты для сопоставления с моделью угроз </p>
-                <form className="forms-sample">
-                  <Form.Group>
-                    <label htmlFor="exampleInputUsername1">Наименование объекта</label>
-                    <Form.Control type="text" id="exampleInputUsername1" placeholder="Региональный центр обработки данных" />
-                  </Form.Group>
-                  <Form.Group>
-                    <label htmlFor="exampleInputEmail1">Ответственное подразделение</label>
-                    <Form.Control type="email" className="form-control" id="exampleInputEmail1" placeholder="Центр мониторинга ИБ" />
-                  </Form.Group>
-                  <Form.Group>
-                    <label htmlFor="exampleInputPassword1">Класс значимости</label>
-                    <Form.Control type="password" className="form-control" id="exampleInputPassword1" placeholder="К1 / К2 / К3" />
-                  </Form.Group>
-                  <Form.Group>
-                    <label htmlFor="exampleInputConfirmPassword1">Ключевой сервис</label>
-                    <Form.Control type="password" className="form-control" id="exampleInputConfirmPassword1" placeholder="SCADA / ERP / портал услуг" />
-                  </Form.Group>
-                  <div className="form-check">
-                    <label className="form-check-label text-muted">
-                      <input type="checkbox" className="form-check-input"/>
-                      <i className="input-helper"></i>
-                      Использовать профиль в расчете риска
-                    </label>
-                  </div>
-                  <button type="submit" className="btn btn-primary mr-2">Сохранить профиль</button>
-                  <button className="btn btn-dark">Очистить</button>
-                </form>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-6 grid-margin stretch-card">
-            <div className="card">
-              <div className="card-body">
-                <h4 className="card-title">Параметры сопоставления</h4>
-                <p className="card-description"> Поля, влияющие на релевантность угрозы для объекта </p>
-                <form className="forms-sample">
-                  <Form.Group className="row">
-                    <label htmlFor="exampleInputUsername2" className="col-sm-3 col-form-label">Отрасль</label>
-                    <div className="col-sm-9">
-                    <Form.Control type="text" className="form-control" id="exampleInputUsername2" placeholder="Энергетика / транспорт / финансы" />
-                    </div>
-                  </Form.Group>
-                  <Form.Group className="row">
-                    <label htmlFor="exampleInputEmail2" className="col-sm-3 col-form-label">Регион</label>
-                    <div className="col-sm-9">
-                    <Form.Control type="email" className="form-control" id="exampleInputEmail2" placeholder="Россия / федеральный округ" />
-                    </div>
-                  </Form.Group>
-                  <Form.Group className="row">
-                    <label htmlFor="exampleInputMobile" className="col-sm-3 col-form-label">Экспозиция</label>
-                    <div className="col-sm-9">
-                    <Form.Control type="text" className="form-control" id="exampleInputMobile" placeholder="VPN, подрядчики, веб-сервисы" />
-                    </div>
-                  </Form.Group>
-                  <Form.Group className="row">
-                    <label htmlFor="exampleInputPassword2" className="col-sm-3 col-form-label">Последствия</label>
-                    <div className="col-sm-9">
-                    <Form.Control type="password" className="form-control" id="exampleInputPassword2" placeholder="Остановка сервиса / потеря телеметрии" />
-                    </div>
-                  </Form.Group>
-                  <Form.Group className="row">
-                    <label htmlFor="exampleInputConfirmPassword2" className="col-sm-3 col-form-label">Зрелость защиты</label>
-                    <div className="col-sm-9">
-                    <Form.Control type="password" className="form-control" id="exampleInputConfirmPassword2" placeholder="Низкая / средняя / высокая" />
-                    </div>
-                  </Form.Group>
-                  <div className="form-check">
-                    <label className="form-check-label text-muted">
-                      <input type="checkbox" className="form-check-input"/>
-                      <i className="input-helper"></i>
-                      Учитывать объект в ежедневной аналитике
-                    </label>
-                  </div>
-                  <button type="submit" className="btn btn-primary mr-2">Применить</button>
-                  <button className="btn btn-dark">Отмена</button>
-                </form>
-              </div>
-            </div>
-          </div>
-          <div className="col-12 grid-margin stretch-card">
-            <div className="card">
-              <div className="card-body">
-                <h4 className="card-title">Сценарий оценки риска</h4>
-                <p className="card-description"> Форма для ручной настройки признаков объекта </p>
-                <form className="forms-sample">
-                  <Form.Group>
-                    <label htmlFor="exampleInputName1">Сценарий</label>
-                    <Form.Control type="text" className="form-control" id="exampleInputName1" placeholder="Оценка риска для регионального оператора" />
-                  </Form.Group>
-                  <Form.Group>
-                    <label htmlFor="exampleInputEmail3">Ответственный аналитик</label>
-                    <Form.Control type="email" className="form-control" id="exampleInputEmail3" placeholder="Имя аналитика" />
-                  </Form.Group>
-                  <Form.Group>
-                    <label htmlFor="exampleInputPassword4">Приоритет</label>
-                    <Form.Control type="password" className="form-control" id="exampleInputPassword4" placeholder="Высокий" />
-                    </Form.Group>
+
+        <Form onSubmit={this.handleSubmit}>
+          <div className="row">
+            <div className="col-12 grid-margin">
+              <SectionCard
+                title="Профиль объекта"
+                description="Базовая идентификация объекта и его роль в модели риска."
+              >
+                <div className="row">
+                  <div className="col-md-6">
                     <Form.Group>
-                    <label htmlFor="exampleSelectGender">Тип объекта</label>
-                    <select className="form-control" id="exampleSelectGender">
-                      <option>ЦОД</option>
-                      <option>АСУ ТП</option>
-                      <option>Сервисный портал</option>
-                    </select>
-                  </Form.Group>
-                  <Form.Group>
-                    <label>Импорт профиля</label>
-                    <div className="custom-file">
-                      <Form.Control type="file" className="form-control visibility-hidden" id="customFileLang" lang="es"/>
-                      <label className="custom-file-label" htmlFor="customFileLang">Загрузить описание объекта</label>
-                    </div>
-                  </Form.Group>
-                  <Form.Group>
-                    <label htmlFor="exampleInputCity1">Локация</label>
-                    <Form.Control type="text" className="form-control" id="exampleInputCity1" placeholder="Москва / Приволжский ФО" />
-                  </Form.Group>
-                  <Form.Group>
-                    <label htmlFor="exampleTextarea1">Комментарий аналитика</label>
-                    <textarea className="form-control" id="exampleTextarea1" rows="4"></textarea>
-                  </Form.Group>
-                  <button type="submit" className="btn btn-primary mr-2">Рассчитать</button>
-                  <button className="btn btn-dark">Сбросить</button>
-                </form>
-              </div>
+                      <label htmlFor="objectName">Наименование объекта</label>
+                      <Form.Control
+                        type="text"
+                        id="objectName"
+                        name="objectName"
+                        value={form.objectName}
+                        onChange={this.handleInputChange}
+                        placeholder="Региональный центр обработки данных"
+                      />
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-6">
+                    <Form.Group>
+                      <label htmlFor="objectType">Тип объекта</label>
+                      <select
+                        className="form-control"
+                        id="objectType"
+                        name="objectType"
+                        value={form.objectType}
+                        onChange={this.handleInputChange}
+                      >
+                        {renderOptions(objectTypes)}
+                      </select>
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-4">
+                    <Form.Group>
+                      <label htmlFor="criticalityClass">Класс значимости</label>
+                      <select
+                        className="form-control"
+                        id="criticalityClass"
+                        name="criticalityClass"
+                        value={form.criticalityClass}
+                        onChange={this.handleInputChange}
+                      >
+                        {renderOptions(criticalityClasses)}
+                      </select>
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-4">
+                    <Form.Group>
+                      <label htmlFor="industry">Отрасль</label>
+                      <select
+                        className="form-control"
+                        id="industry"
+                        name="industry"
+                        value={form.industry}
+                        onChange={this.handleInputChange}
+                      >
+                        {renderOptions(industries)}
+                      </select>
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-4">
+                    <Form.Group>
+                      <label htmlFor="subIndustry">Подотрасль</label>
+                      <Form.Control
+                        type="text"
+                        id="subIndustry"
+                        name="subIndustry"
+                        value={form.subIndustry}
+                        onChange={this.handleInputChange}
+                        placeholder="Генерация / распределение / сбыт"
+                      />
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-6">
+                    <Form.Group>
+                      <label htmlFor="region">Регион</label>
+                      <Form.Control
+                        type="text"
+                        id="region"
+                        name="region"
+                        value={form.region}
+                        onChange={this.handleInputChange}
+                        placeholder="Россия / Центральный федеральный округ"
+                      />
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-6">
+                    <Form.Group>
+                      <label htmlFor="ownerUnit">Ответственное подразделение</label>
+                      <Form.Control
+                        type="text"
+                        id="ownerUnit"
+                        name="ownerUnit"
+                        value={form.ownerUnit}
+                        onChange={this.handleInputChange}
+                        placeholder="Центр мониторинга ИБ"
+                      />
+                    </Form.Group>
+                  </div>
+                </div>
+              </SectionCard>
             </div>
-          </div>
-          <div className="col-md-6 grid-margin stretch-card">
-            <div className="card">
-              <div className="card-body">
-                <h4 className="card-title">Input size</h4>
-                <p className="card-description"> Add classNames like <code>.form-control-lg</code> and <code>.form-control-sm</code>. </p>
+
+            <div className="col-md-6 grid-margin stretch-card">
+              <SectionCard
+                title="Бизнес-критичность"
+                description="Поля, которые потом будут влиять на вес объекта в расчёте риска."
+              >
+                <ScoreField
+                  id="businessCriticality"
+                  label="Бизнес-критичность объекта"
+                  value={form.businessCriticality}
+                  onChange={this.handleInputChange}
+                  helperText="От 0 до 1. Чем выше, тем сильнее объект влияет на итоговый риск."
+                  name="businessCriticality"
+                />
+                <ScoreField
+                  id="impactConfidentiality"
+                  label="Влияние на конфиденциальность"
+                  value={form.impactConfidentiality}
+                  onChange={this.handleInputChange}
+                  name="impactConfidentiality"
+                />
+                <ScoreField
+                  id="impactIntegrity"
+                  label="Влияние на целостность"
+                  value={form.impactIntegrity}
+                  onChange={this.handleInputChange}
+                  name="impactIntegrity"
+                />
+                <ScoreField
+                  id="impactAvailability"
+                  label="Влияние на доступность"
+                  value={form.impactAvailability}
+                  onChange={this.handleInputChange}
+                  name="impactAvailability"
+                />
                 <Form.Group>
-                  <label>Large input</label>
-                  <Form.Control type="text" className="form-control-lg" placeholder="Username" aria-label="Username" />
+                  <label htmlFor="downtimeTolerance">Допустимый простой</label>
+                  <Form.Control
+                    type="text"
+                    id="downtimeTolerance"
+                    name="downtimeTolerance"
+                    value={form.downtimeTolerance}
+                    onChange={this.handleInputChange}
+                    placeholder="Не более 30 минут"
+                  />
                 </Form.Group>
-                <Form.Group>
-                  <label>Default input</label>
-                  <Form.Control type="text" className="form-control" placeholder="Username" aria-label="Username" />
-                </Form.Group>
-                <Form.Group>
-                  <label>Small input</label>
-                  <Form.Control type="text" className="form-control-sm" placeholder="Username" aria-label="Username" />
-                </Form.Group>
-              </div>
+              </SectionCard>
             </div>
-          </div>
-          <div className="col-md-6 grid-margin stretch-card">
-            <div className="card">
-              <div className="card-body">
-                <h4 className="card-title">Select size</h4>
-                <p className="card-description"> Add classNamees like <code>.form-control-lg</code> and <code>.form-control-sm</code>. </p>
+
+            <div className="col-md-6 grid-margin stretch-card">
+              <SectionCard
+                title="Экспозиция объекта"
+                description="Параметры, которые будут связаны с векторами атаки и доступностью объекта."
+              >
+                <ScoreField
+                  id="attackSurface"
+                  label="Оценка поверхности атаки"
+                  value={form.attackSurface}
+                  onChange={this.handleInputChange}
+                  name="attackSurface"
+                />
+                <ScoreField
+                  id="remoteAccessLevel"
+                  label="Уровень удалённого доступа"
+                  value={form.remoteAccessLevel}
+                  onChange={this.handleInputChange}
+                  name="remoteAccessLevel"
+                />
                 <Form.Group>
-                  <label htmlFor="exampleFormControlSelect1">Large select</label>
-                  <select className="form-control form-control-lg" id="exampleFormControlSelect1">
-                    <option>1</option>
-                    <option>2</option>
-                    <option>3</option>
-                    <option>4</option>
-                    <option>5</option>
+                  <label htmlFor="integrationLevel">Внешние интеграции</label>
+                  <Form.Control
+                    type="text"
+                    id="integrationLevel"
+                    name="integrationLevel"
+                    value={form.integrationLevel}
+                    onChange={this.handleInputChange}
+                    placeholder="VPN, подрядчики, API, веб-сервисы"
+                  />
+                </Form.Group>
+                <div className="form-check mb-2">
+                  <label className="form-check-label text-muted">
+                    <input
+                      type="checkbox"
+                      className="form-check-input"
+                      name="internetExposed"
+                      checked={form.internetExposed}
+                      onChange={this.handleInputChange}
+                    />
+                    Объект доступен из внешней сети
+                    <i className="input-helper"></i>
+                  </label>
+                </div>
+                <div className="form-check mb-2">
+                  <label className="form-check-label text-muted">
+                    <input
+                      type="checkbox"
+                      className="form-check-input"
+                      name="contractorAccess"
+                      checked={form.contractorAccess}
+                      onChange={this.handleInputChange}
+                    />
+                    Есть доступ подрядчиков
+                    <i className="input-helper"></i>
+                  </label>
+                </div>
+                <div className="form-check">
+                  <label className="form-check-label text-muted">
+                    <input
+                      type="checkbox"
+                      className="form-check-input"
+                      name="userInteractionDependency"
+                      checked={form.userInteractionDependency}
+                      onChange={this.handleInputChange}
+                    />
+                    Высокая зависимость от действий пользователя
+                    <i className="input-helper"></i>
+                  </label>
+                </div>
+              </SectionCard>
+            </div>
+
+            <div className="col-md-6 grid-margin stretch-card">
+              <SectionCard
+                title="Технологический профиль"
+                description="Признаки архитектуры, которые помогут сопоставлять объект с типами угроз."
+              >
+                <div className="form-check mb-3">
+                  <label className="form-check-label text-muted">
+                    <input
+                      type="checkbox"
+                      className="form-check-input"
+                      name="isIcs"
+                      checked={form.isIcs}
+                      onChange={this.handleInputChange}
+                    />
+                    Объект относится к АСУ ТП / технологическому сегменту
+                    <i className="input-helper"></i>
+                  </label>
+                </div>
+                <ScoreField
+                  id="segmentationLevel"
+                  label="Уровень сегментации"
+                  value={form.segmentationLevel}
+                  onChange={this.handleInputChange}
+                  name="segmentationLevel"
+                />
+                <ScoreField
+                  id="legacyShare"
+                  label="Доля legacy-компонентов"
+                  value={form.legacyShare}
+                  onChange={this.handleInputChange}
+                  name="legacyShare"
+                />
+                <ScoreField
+                  id="cloudPresence"
+                  label="Облачное присутствие"
+                  value={form.cloudPresence}
+                  onChange={this.handleInputChange}
+                  name="cloudPresence"
+                />
+              </SectionCard>
+            </div>
+
+            <div className="col-md-6 grid-margin stretch-card">
+              <SectionCard
+                title="Зрелость защиты"
+                description="Здесь задаются качественные оценки защитных мер, которые позже можно перевести в числовые веса."
+              >
+                <Form.Group>
+                  <label htmlFor="securityMaturity">Зрелость ИБ</label>
+                  <select
+                    className="form-control"
+                    id="securityMaturity"
+                    name="securityMaturity"
+                    value={form.securityMaturity}
+                    onChange={this.handleInputChange}
+                  >
+                    {renderOptions(maturityLevels)}
                   </select>
                 </Form.Group>
                 <Form.Group>
-                  <label htmlFor="exampleFormControlSelect2">Default select</label>
-                  <select className="form-control" id="exampleFormControlSelect2">
-                    <option>1</option>
-                    <option>2</option>
-                    <option>3</option>
-                    <option>4</option>
-                    <option>5</option>
+                  <label htmlFor="monitoringMaturity">Зрелость мониторинга</label>
+                  <select
+                    className="form-control"
+                    id="monitoringMaturity"
+                    name="monitoringMaturity"
+                    value={form.monitoringMaturity}
+                    onChange={this.handleInputChange}
+                  >
+                    {renderOptions(maturityLevels)}
                   </select>
                 </Form.Group>
                 <Form.Group>
-                  <label htmlFor="exampleFormControlSelect3">Small select</label>
-                  <select className="form-control form-control-sm" id="exampleFormControlSelect3">
-                    <option>1</option>
-                    <option>2</option>
-                    <option>3</option>
-                    <option>4</option>
-                    <option>5</option>
+                  <label htmlFor="patchMaturity">Зрелость патч-менеджмента</label>
+                  <select
+                    className="form-control"
+                    id="patchMaturity"
+                    name="patchMaturity"
+                    value={form.patchMaturity}
+                    onChange={this.handleInputChange}
+                  >
+                    {renderOptions(maturityLevels)}
                   </select>
                 </Form.Group>
+              </SectionCard>
+            </div>
+
+            <div className="col-12 grid-margin">
+              <SectionCard
+                title="Рабочие комментарии"
+                description="Наблюдения аналитика, которые пока не участвуют в формуле, но важны для паспорта."
+              >
+                <Form.Group className="mb-0">
+                  <label htmlFor="comments">Комментарии</label>
+                  <Form.Control
+                    as="textarea"
+                    rows={6}
+                    id="comments"
+                    name="comments"
+                    value={form.comments}
+                    onChange={this.handleInputChange}
+                    placeholder="Здесь можно зафиксировать особенности объекта, ограничения и наблюдения."
+                  />
+                </Form.Group>
+              </SectionCard>
+            </div>
+
+            <div className="col-12 grid-margin">
+              <div className="card">
+                <div className="card-body">
+                  <h4 className="card-title">Черновик паспорта</h4>
+                  <p className="card-description mb-4">
+                    После сохранения запись будет добавлена в коллекцию <code>objects</code>.
+                  </p>
+                  {saveSuccess ? (
+                    <div className="alert alert-success" role="alert">
+                      {saveSuccess}
+                      {savedObjectId ? ` ID: ${savedObjectId}` : ''}
+                    </div>
+                  ) : null}
+                  {saveError ? (
+                    <div className="alert alert-danger" role="alert">
+                      {saveError}
+                    </div>
+                  ) : null}
+                  <div className="d-flex flex-wrap align-items-center">
+                    <button
+                      type="submit"
+                      className="btn btn-success mr-3 mb-2 mb-sm-0"
+                      disabled={isSaving}
+                    >
+                      {isSaving ? 'Сохраняем...' : 'Сохранить паспорт'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline-light"
+                      onClick={this.handleReset}
+                      disabled={isSaving}
+                    >
+                      Очистить форму
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <div className="col-md-6 grid-margin stretch-card">
-            <div className="card">
-              <div className="card-body">
-                <h4 className="card-title">Basic input groups</h4>
-                <p className="card-description"> Basic bootstrap input groups </p>
-                <Form.Group>
-                  <div className="input-group">
-                    <div className="input-group-prepend">
-                      <span className="input-group-text">@</span>
-                    </div>
-                    <Form.Control type="text" className="form-control" placeholder="Username" aria-label="Username" aria-describedby="basic-addon1" />
-                  </div>
-                </Form.Group>
-                <Form.Group>
-                  <div className="input-group">
-                    <div className="input-group-prepend">
-                      <span className="input-group-text bg-primary text-white">$</span>
-                    </div>
-                    <Form.Control type="text" className="form-control" aria-label="Amount (to the nearest dollar)" />
-                    <div className="input-group-append">
-                      <span className="input-group-text">.00</span>
-                    </div>
-                  </div>
-                </Form.Group>
-                <Form.Group>
-                  <div className="input-group">
-                    <div className="input-group-prepend">
-                      <span className="input-group-text">$</span>
-                    </div>
-                    <div className="input-group-prepend">
-                      <span className="input-group-text">0.00</span>
-                    </div>
-                    <Form.Control type="text" className="form-control" aria-label="Amount (to the nearest dollar)" />
-                  </div>
-                </Form.Group>
-                <Form.Group>
-                  <div className="input-group">
-                  <Form.Control type="text" className="form-control" placeholder="Recipient's username" aria-label="Recipient's username" aria-describedby="basic-addon2" />
-                    <div className="input-group-append">
-                      <button className="btn btn-sm btn-primary" type="button">Search</button>
-                    </div>
-                  </div>
-                </Form.Group>
-                <Form.Group>
-                  <div className="input-group">
-                    <div className="input-group-prepend">
-                      <button className="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Dropdown</button>
-                      <div className="dropdown-menu">
-                        <a className="dropdown-item" href="!#" onClick={event => event.preventDefault()}>Action</a>
-                        <a className="dropdown-item" href="!#" onClick={event => event.preventDefault()}>Another action</a>
-                        <a className="dropdown-item" href="!#" onClick={event => event.preventDefault()}>Something else here</a>
-                        <div role="separator" className="dropdown-divider"></div>
-                        <a className="dropdown-item" href="!#" onClick={event => event.preventDefault()}>Separated link</a>
-                      </div>
-                    </div>
-                    <Form.Control type="text" className="form-control" aria-label="Text input with dropdown button" />
-                  </div>
-                </Form.Group>
-                <Form.Group>
-                  <div className="input-group">
-                    <Form.Control type="text" className="form-control" placeholder="Find in facebook" aria-label="Recipient's username" aria-describedby="basic-addon2" />
-                      <div className="input-group-append">
-                        <button className="btn btn-sm btn-facebook" type="button">
-                          <i className="mdi mdi-facebook"></i>
-                        </button>
-                      </div>
-                  </div>
-                </Form.Group>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-6 grid-margin stretch-card">
-            <div className="card">
-              <div className="card-body">
-                <h4 className="card-title">Checkbox Controls</h4>
-                <p className="card-description">Checkbox and radio controls (default appearance is in primary color)</p>
-                <form>
-                  <div className="row">
-                    <div className="col-md-6">
-                      <Form.Group>
-                        <div className="form-check">
-                          <label className="form-check-label">
-                            <input type="checkbox" className="form-check-input"/>
-                            <i className="input-helper"></i>
-                            Default
-                          </label>
-                        </div>
-                        <div className="form-check">
-                          <label className="form-check-label">
-                            <input type="checkbox" defaultChecked className="form-check-input"/>
-                            <i className="input-helper"></i>
-                            Checked
-                          </label>
-                        </div>
-                        <div className="form-check">
-                          <label className="form-check-label">
-                            <input type="checkbox" disabled className="form-check-input"/>
-                            <i className="input-helper"></i>
-                            Disabled
-                          </label>
-                        </div>
-                        <div className="form-check">
-                          <label className="form-check-label">
-                            <input type="checkbox" disabled defaultChecked className="form-check-input"/>
-                            <i className="input-helper"></i>
-                            Disabled checked
-                          </label>
-                        </div>
-                      </Form.Group>
-                    </div>
-                    <div className="col-md-6">
-                      <Form.Group>
-                        <div className="form-check">
-                          <label className="form-check-label">
-                            <input type="radio" className="form-check-input" name="optionsRadios" id="optionsRadios1" value=""/>
-                            <i className="input-helper"></i>
-                            Default
-                          </label>
-                        </div>
-                        <div className="form-check">
-                          <label className="form-check-label">
-                            <input type="radio" className="form-check-input" name="optionsRadios" id="optionsRadios2" value="option2" defaultChecked/>
-                            <i className="input-helper"></i>
-                            Selected
-                          </label>
-                        </div>
-                        <div className="form-check">
-                          <label className="form-check-label">
-                            <input type="radio" className="form-check-input" name="optionsRadios2" id="optionsRadios3" value="option3" disabled/>
-                            <i className="input-helper"></i>
-                            Disabled
-                          </label>
-                        </div>
-                        <div className="form-check">
-                          <label className="form-check-label">
-                            <input type="radio" className="form-check-input" name="optionsRadios2" id="optionsRadios4" value="option4" disabled defaultChecked/>
-                            <i className="input-helper"></i>
-                            Selected and disabled 
-                          </label>
-                        </div>
-                      </Form.Group>
-                    </div>
-                  </div>
-                </form>
-              </div>
-              <div className="card-body">
-                <p className="card-description">Add className <code>.form-check-&#123;color&#123;</code> for checkbox and radio controls in theme colors</p>
-                <form>
-                  <div className="row">
-                    <div className="col-md-6">
-                      <Form.Group>
-                        <div className="form-check form-check-primary">
-                          <label className="form-check-label">
-                            <input type="checkbox" className="form-check-input" defaultChecked /> Primary 
-                            <i className="input-helper"></i>
-                          </label>
-                        </div>
-                        <div className="form-check form-check-success">
-                          <label className="form-check-label">
-                            <input type="checkbox" className="form-check-input" defaultChecked /> Success 
-                            <i className="input-helper"></i>
-                          </label>
-                        </div>
-                        <div className="form-check form-check-info">
-                          <label className="form-check-label">
-                            <input type="checkbox" className="form-check-input" defaultChecked /> Info 
-                            <i className="input-helper"></i>
-                          </label>
-                        </div>
-                        <div className="form-check form-check-danger">
-                          <label className="form-check-label">
-                            <input type="checkbox" className="form-check-input" defaultChecked /> Danger 
-                            <i className="input-helper"></i>
-                          </label>
-                        </div>
-                        <div className="form-check form-check-warning">
-                          <label className="form-check-label">
-                            <input type="checkbox" className="form-check-input" defaultChecked /> Warning 
-                            <i className="input-helper"></i>
-                          </label>
-                        </div>
-                      </Form.Group>
-                    </div>
-                    <div className="col-md-6">
-                      <Form.Group>
-                        <div className="form-check form-check-primary">
-                          <label className="form-check-label">
-                            <input type="radio" className="form-check-input" name="ExampleRadio1" id="ExampleRadio1" defaultChecked /> Primary 
-                            <i className="input-helper"></i>
-                          </label>
-                        </div>
-                        <div className="form-check form-check-success">
-                          <label className="form-check-label">
-                            <input type="radio" className="form-check-input" name="ExampleRadio2" id="ExampleRadio2" defaultChecked /> Success 
-                            <i className="input-helper"></i>
-                          </label>
-                        </div>
-                        <div className="form-check form-check-info">
-                          <label className="form-check-label">
-                            <input type="radio" className="form-check-input" name="ExampleRadio3" id="ExampleRadio3" defaultChecked /> Info 
-                            <i className="input-helper"></i>
-                          </label>
-                        </div>
-                        <div className="form-check form-check-danger">
-                          <label className="form-check-label">
-                            <input type="radio" className="form-check-input" name="ExampleRadio4" id="ExampleRadio4" defaultChecked /> Danger 
-                            <i className="input-helper"></i>
-                          </label>
-                        </div>
-                        <div className="form-check form-check-warning">
-                          <label className="form-check-label">
-                            <input type="radio" className="form-check-input" name="ExampleRadio5" id="ExampleRadio5" defaultChecked /> Warning 
-                            <i className="input-helper"></i>
-                          </label>
-                        </div>
-                      </Form.Group>
-                    </div>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-          <div className="col-12 grid-margin stretch-card">
-            <div className="card">
-              <div className="card-body">
-                <h4 className="card-title">Inline forms</h4>
-                <p className="card-description"> Use the <code>.form-inline</code> className to display a series of labels, form controls, and buttons on a single horizontal row </p>
-                <form className="form-inline">
-                  <label className="sr-only" htmlFor="inlineFormInputName2">Name</label>
-                  <Form.Control  type="text" className="form-control mb-2 mr-sm-2" id="inlineFormInputName2" placeholder="Jane Doe" />
-                  <label className="sr-only" htmlFor="inlineFormInputGroupUsername2">Username</label>
-                  <div className="input-group mb-2 mr-sm-2">
-                    <div className="input-group-prepend">
-                      <div className="input-group-text">@</div>
-                    </div>
-                    <Form.Control  type="text" className="form-control" id="inlineFormInputGroupUsername2" placeholder="Username" />
-                  </div>
-                  <div className="form-check mx-sm-2">
-                    <label className="form-check-label">
-                      <input type="checkbox" className="form-check-input" defaultChecked/> Remember me 
-                      <i className="input-helper"></i>
-                    </label>
-                  </div>
-                  <button type="submit" className="btn btn-primary mb-2">Submit</button>
-                </form>
-              </div>
-            </div>
-          </div>
-          <div className="col-12 grid-margin">
-            <div className="card">
-              <div className="card-body">
-                <h4 className="card-title">Horizontal Two column</h4>
-                <form className="form-sample">
-                  <p className="card-description"> Personal info </p>
-                  <div className="row">
-                    <div className="col-md-6">
-                      <Form.Group className="row">
-                        <label className="col-sm-3 col-form-label">First Name</label>
-                        <div className="col-sm-9">
-                        <Form.Control  type="text" />
-                        </div>
-                      </Form.Group>
-                    </div>
-                    <div className="col-md-6">
-                      <Form.Group className="row">
-                        <label className="col-sm-3 col-form-label">Last Name</label>
-                        <div className="col-sm-9">
-                        <Form.Control type="text" />
-                        </div>
-                      </Form.Group>
-                    </div>
-                  </div>
-                  <div className="row">
-                    <div className="col-md-6">
-                      <Form.Group className="row">
-                        <label className="col-sm-3 col-form-label">Gender</label>
-                        <div className="col-sm-9">
-                          <select className="form-control">
-                            <option>Male</option>
-                            <option>Female</option>
-                          </select>
-                        </div>
-                      </Form.Group>
-                    </div>
-                    <div className="col-md-6">
-                      <Form.Group className="row">
-                        <label className="col-sm-3 col-form-label">Date of Birth</label>
-                        <div className="col-sm-9">
-                        <DatePicker className="form-control w-100"
-                          selected={this.state.startDate}
-                          onChange={this.handleChange}
-                        />
-                        </div>
-                      </Form.Group>
-                    </div>
-                  </div>
-                  <div className="row">
-                    <div className="col-md-6">
-                      <Form.Group className="row">
-                        <label className="col-sm-3 col-form-label">Category</label>
-                        <div className="col-sm-9">
-                          <select className="form-control">
-                            <option>Category1</option>
-                            <option>Category2</option>
-                            <option>Category3</option>
-                            <option>Category4</option>
-                          </select>
-                        </div>
-                        </Form.Group>
-                    </div>
-                    <div className="col-md-6">
-                      <Form.Group className="row">
-                        <label className="col-sm-3 col-form-label">Membership</label>
-                        <div className="col-sm-4">
-                        <div className="form-check">
-                          <label className="form-check-label">
-                            <input type="radio" className="form-check-input" name="ExampleRadio4" id="membershipRadios1" defaultChecked /> Free 
-                            <i className="input-helper"></i>
-                          </label>
-                        </div>
-                        </div>
-                        <div className="col-sm-5">
-                        <div className="form-check">
-                          <label className="form-check-label">
-                            <input type="radio" className="form-check-input" name="ExampleRadio4" id="membershipRadios2" /> Proffessional 
-                            <i className="input-helper"></i>
-                          </label>
-                        </div>
-                        </div>
-                      </Form.Group>
-                    </div>
-                  </div>
-                  <p className="card-description"> Address </p>
-                  <div className="row">
-                    <div className="col-md-6">
-                      <Form.Group className="row">
-                        <label className="col-sm-3 col-form-label">Address 1</label>
-                        <div className="col-sm-9">
-                        <Form.Control type="text"/>
-                        </div>
-                      </Form.Group>
-                    </div>
-                    <div className="col-md-6">
-                      <Form.Group className="row">
-                        <label className="col-sm-3 col-form-label">State 1</label>
-                        <div className="col-sm-9">
-                        <Form.Control type="text"/>
-                        </div>
-                      </Form.Group>
-                    </div>
-                  </div>
-                  <div className="row">
-                    <div className="col-md-6">
-                      <Form.Group className="row">
-                        <label className="col-sm-3 col-form-label">Address 2</label>
-                        <div className="col-sm-9">
-                        <Form.Control type="text"/>
-                        </div>
-                      </Form.Group>
-                    </div>
-                    <div className="col-md-6">
-                      <Form.Group className="row">
-                        <label className="col-sm-3 col-form-label">Postcode</label>
-                        <div className="col-sm-9">
-                        <Form.Control type="text"/>
-                        </div>
-                      </Form.Group>
-                    </div>
-                  </div>
-                  <div className="row">
-                    <div className="col-md-6">
-                      <Form.Group className="row">
-                        <label className="col-sm-3 col-form-label">Cirt</label>
-                        <div className="col-sm-9">
-                        <Form.Control type="text"/>
-                        </div>
-                      </Form.Group>
-                    </div>
-                    <div className="col-md-6">
-                      <Form.Group className="row">  
-                        <label className="col-sm-3 col-form-label">Country</label>
-                        <div className="col-sm-9">
-                          <select className="form-control">
-                            <option>America</option>
-                            <option>Italy</option>
-                            <option>Russia</option>
-                            <option>Britain</option>
-                          </select>
-                        </div>
-                      </Form.Group>
-                    </div>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
+        </Form>
       </div>
-    )
+    );
   }
 }
 
-export default BasicElements
+export default BasicElements;

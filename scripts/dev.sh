@@ -39,7 +39,7 @@ nohup env \
 BACKEND_PID=$!
 echo "$BACKEND_PID" >"$BACKEND_PID_FILE"
 
-if ! wait_for_http "http://127.0.0.1:3000/articles" 30 1; then
+if ! wait_for_http "http://127.0.0.1:3000/" 30 1; then
   echo "Backend did not become ready. See $BACKEND_LOG"
   exit 1
 fi

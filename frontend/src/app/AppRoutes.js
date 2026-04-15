@@ -11,10 +11,12 @@ const Dropdowns = lazy(() => import('./basic-ui/Dropdowns'));
 const Typography = lazy(() => import('./basic-ui/Typography'));
 
 const BasicElements = lazy(() => import('./form-elements/BasicElements'));
+const ObjectModelsList = lazy(() => import('./form-elements/ObjectModelsList'));
 
 const BasicTable = lazy(() => import('./tables/BasicTable'));
 
 const Mdi = lazy(() => import('./icons/Mdi'));
+const Methodology = lazy(() => import('./docs/Methodology'));
 
 const ChartJs = lazy(() => import('./charts/ChartJs'));
 
@@ -36,11 +38,13 @@ class AppRoutes extends Component {
           <ProtectedRoute path="/basic-ui/dropdowns" component={ Dropdowns } />
           <ProtectedRoute path="/basic-ui/typography" component={ Typography } />
 
-          <ProtectedRoute path="/form-Elements/basic-elements" component={ BasicElements } />
+          <ProtectedRoute path="/form-elements/basic-elements" component={ BasicElements } />
+          <ProtectedRoute path="/form-elements/object-models" component={ ObjectModelsList } />
 
           <ProtectedRoute path="/tables/basic-table" component={ BasicTable } />
 
           <ProtectedRoute path="/icons/mdi" component={ Mdi } />
+          <ProtectedRoute path="/docs/methodology" component={ Methodology } />
 
           <ProtectedRoute path="/charts/chart-js" component={ ChartJs } />
 

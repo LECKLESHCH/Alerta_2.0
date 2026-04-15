@@ -4,6 +4,7 @@ import {
   getThreatCategoryLabel,
   getThreatSubcategoryLabel,
 } from '../../utils/threatLabels';
+import { buildInterpretationMeta } from '../../utils/interpretation';
 
 const DEFAULT_VISIBLE_ROWS = 5;
 
@@ -531,10 +532,11 @@ class Dropdowns extends Component {
   renderExpandedThreatRow(item) {
     const textState = buildPreview(item.text);
     const showFullText = this.state.fullyExpandedThreatId === item._id;
+    const interpretation = buildInterpretationMeta(item);
 
     return (
       <tr key={`${item._id}-expanded`}>
-        <td colSpan="6" className="border-top-0 pt-0">
+        <td colSpan="7" className="border-top-0 pt-0">
           <div
             className="border rounded p-4 mt-2"
             style={{
@@ -558,6 +560,36 @@ class Dropdowns extends Component {
               <span className={`badge ${getSeverityBadgeClass(item.severity)}`}>
                 {item.severity || 'n/a'}
               </span>
+            </div>
+            <div className="mb-3 border rounded p-3" style={{ borderColor: '#2c3553' }}>
+              <div className="d-flex flex-wrap align-items-center mb-2">
+                <span className={interpretation.groundingBadgeClass}>
+                  {interpretation.groundingLabel}
+                </span>
+                <span className="small ml-2" style={MUTED_TEXT_STYLE}>
+                  grounding {interpretation.groundingPercent}
+                </span>
+              </div>
+              <div className="small mb-2" style={MUTED_TEXT_STYLE}>
+                {item.interpretation_summary || 'Интерпретация пока не сформирована.'}
+              </div>
+              <div className="small mb-2" style={MUTED_TEXT_STYLE}>
+                {interpretation.primaryReference
+                  ? `Reference: ${interpretation.primaryReference.reference_id} (score ${Number(
+                      interpretation.primaryReference.score || 0,
+                    ).toFixed(2)})`
+                  : interpretation.isNovel
+                    ? 'Похожа на новую или нетипичную угрозу: эталон не найден'
+                    : 'Reference match не найден'}
+              </div>
+              <div className="small mb-2" style={MUTED_TEXT_STYLE}>
+                Совпадений найдено: {interpretation.matchCount}
+              </div>
+              {Array.isArray(item.technology_terms) && item.technology_terms.length ? (
+                <div className="small" style={MUTED_TEXT_STYLE}>
+                  Техпризнаки: {item.technology_terms.join(', ')}
+                </div>
+              ) : null}
             </div>
             <div
               className="mb-3"
@@ -660,6 +692,7 @@ class Dropdowns extends Component {
                         <th style={TABLE_TEXT_STYLE}>Заголовок</th>
                         <th style={TABLE_TEXT_STYLE}>Категория угрозы</th>
                         <th style={TABLE_TEXT_STYLE}>Подкатегория угрозы</th>
+                        <th style={TABLE_TEXT_STYLE}>Интерпретация</th>
                         <th style={TABLE_TEXT_STYLE}>Уровень опасности</th>
                         <th style={TABLE_TEXT_STYLE}>Ссылка</th>
                       </tr>
@@ -667,6 +700,7 @@ class Dropdowns extends Component {
                     <tbody>
                       {visibleItems.map((item) => {
                         const isOpened = this.state.openedThreatId === item._id;
+                        const interpretation = buildInterpretationMeta(item);
 
                         return (
                           <React.Fragment key={item._id}>
@@ -681,6 +715,20 @@ class Dropdowns extends Component {
                               </td>
                               <td style={TABLE_TEXT_STYLE}>
                                 {getThreatSubcategoryLabel(item.subcategory)}
+                              </td>
+                              <td style={TABLE_TEXT_STYLE}>
+                                <div>
+                                  <span className={interpretation.groundingBadgeClass}>
+                                    {interpretation.groundingLabel}
+                                  </span>
+                                </div>
+                                <div className="small mt-1" style={MUTED_TEXT_STYLE}>
+                                  {interpretation.primaryReference
+                                    ? `${interpretation.primaryReference.reference_id} · ${interpretation.matchCount}`
+                                    : interpretation.isNovel
+                                      ? 'нет эталона'
+                                      : interpretation.groundingPercent}
+                                </div>
                               </td>
                               <td>{this.renderSeverityCell(item.severity)}</td>
                               <td>

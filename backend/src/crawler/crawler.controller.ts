@@ -27,6 +27,20 @@ export class CrawlerController {
     return {
       status,
       running: this.crawlerService.isCrawlRunning(),
+      scope: this.crawlerService.getActiveCrawlScope(),
+    };
+  }
+
+  @Get('sites')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async crawlSites() {
+    const started = this.crawlerService.startSiteCrawl();
+    const status = started ? 'started' : 'already_running';
+    this.logger.log(`Sites crawl request received: ${status}`);
+    return {
+      status,
+      running: this.crawlerService.isCrawlRunning(),
+      scope: this.crawlerService.getActiveCrawlScope(),
     };
   }
 
@@ -35,6 +49,24 @@ export class CrawlerController {
     return {
       running: this.crawlerService.isCrawlRunning(),
       sources: this.crawlerService.getSourceCount(),
+      scope: this.crawlerService.getActiveCrawlScope(),
+    };
+  }
+
+  @Get('logs')
+  getLogs(@Query('limit') limit?: string) {
+    const parsedLimit = Number(limit);
+    const safeLimit =
+      Number.isFinite(parsedLimit) && parsedLimit > 0
+        ? Math.min(Math.floor(parsedLimit), 500)
+        : 200;
+
+    const logs = this.crawlerService.getRecentLogs(safeLimit);
+
+    return {
+      running: this.crawlerService.isCrawlRunning(),
+      scope: this.crawlerService.getActiveCrawlScope(),
+      ...logs,
     };
   }
 

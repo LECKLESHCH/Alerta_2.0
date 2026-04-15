@@ -1,10 +1,9 @@
 import React, { Component } from 'react';
 import { fetchArticles } from '../../api/articles';
+import { buildInterpretationMeta } from '../../utils/interpretation';
 
 const PREVIEW_WORD_LIMIT = 42;
 const DEFAULT_VISIBLE_ROWS = 5;
-const EXPANDED_VISIBLE_ROWS = 12;
-
 function formatPublishedAt(value) {
   if (!value) {
     return 'Нет даты';
@@ -50,29 +49,6 @@ function buildPreview(text) {
   };
 }
 
-const TABLE_TEXT_STYLE = {
-  color: '#ffffff',
-};
-
-const MUTED_TEXT_STYLE = {
-  color: '#aab4d0',
-};
-
-const FILTER_DROPDOWN_STYLE = {
-  zIndex: 30,
-  maxHeight: '240px',
-  overflowY: 'auto',
-  boxShadow: '0 14px 30px rgba(0, 0, 0, 0.28)',
-};
-
-const FILTER_LABEL_STYLE = {
-  color: '#aab4d0',
-};
-
-const FILTER_META_STYLE = {
-  color: '#aab4d0',
-};
-
 class Buttons extends Component {
   state = {
     newsItems: [],
@@ -83,7 +59,6 @@ class Buttons extends Component {
     sortOrder: 'newest',
     onlyWithContent: false,
     isSourceDropdownOpen: false,
-    isSortDropdownOpen: false,
     expandedPanels: {
       news: false,
       telegram: false,
@@ -153,6 +128,10 @@ class Buttons extends Component {
     this.setState({ titleSearch: event.target.value });
   };
 
+  handleSortOrderChange = (event) => {
+    this.setState({ sortOrder: event.target.value });
+  };
+
   handleOnlyWithContentChange = (event) => {
     this.setState({ onlyWithContent: event.target.checked });
   };
@@ -164,7 +143,6 @@ class Buttons extends Component {
       sortOrder: 'newest',
       onlyWithContent: false,
       isSourceDropdownOpen: false,
-      isSortDropdownOpen: false,
     });
   };
 
@@ -183,19 +161,6 @@ class Buttons extends Component {
           ? prevState.selectedSources.filter((item) => item !== source)
           : [...prevState.selectedSources, source],
       };
-    });
-  };
-
-  toggleSortDropdown = () => {
-    this.setState((prevState) => ({
-      isSortDropdownOpen: !prevState.isSortDropdownOpen,
-    }));
-  };
-
-  selectSortOrder = (sortOrder) => {
-    this.setState({
-      sortOrder,
-      isSortDropdownOpen: false,
     });
   };
 
@@ -246,27 +211,21 @@ class Buttons extends Component {
     resultCount = null,
     isInteractive = false,
   }) {
-    const sortOrderLabel =
-      sortOrder === 'oldest' ? 'Сначала старые' : 'Сначала новые';
-
     return (
       <div className="border rounded px-3 px-xl-4 py-3 mb-4">
         <div className="row">
           <div className="col-12 col-xl-4 mb-3 mb-xl-0">
-            <label
-              className="mb-2 small d-block"
-              style={FILTER_LABEL_STYLE}
-            >
+            <label className="mb-2 text-muted small d-block">
               Источники
             </label>
             <div className="position-relative">
               <button
                 type="button"
-                className="form-control alerta-filter-control d-flex align-items-center justify-content-between text-left"
+                className="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-between"
                 onClick={isInteractive ? this.toggleSourceDropdown : undefined}
                 disabled={!isInteractive}
               >
-                <span className="text-truncate pr-3 alerta-filter-control__text">
+                <span className="text-truncate pr-3">
                   {selectedSourcesLabel}
                 </span>
                 <i
@@ -275,18 +234,22 @@ class Buttons extends Component {
                       ? 'mdi-chevron-up'
                       : 'mdi-chevron-down'
                   }`}
-                  style={FILTER_META_STYLE}
                 ></i>
               </button>
 
               {isInteractive && this.state.isSourceDropdownOpen ? (
                 <div
-                  className="border rounded mt-2 px-3 py-3 position-absolute w-100 alerta-filter-dropdown"
-                  style={FILTER_DROPDOWN_STYLE}
+                  className="border rounded mt-2 px-3 py-3 bg-dark position-absolute w-100"
+                  style={{
+                    zIndex: 30,
+                    maxHeight: '240px',
+                    overflowY: 'auto',
+                    boxShadow: '0 14px 30px rgba(0, 0, 0, 0.28)',
+                  }}
                 >
                   {sources.map((source) => (
                     <div className="form-check mb-2" key={source}>
-                      <label className="form-check-label alerta-filter-option">
+                      <label className="form-check-label">
                         <input
                           type="checkbox"
                           className="form-check-input"
@@ -304,15 +267,12 @@ class Buttons extends Component {
           </div>
 
           <div className="col-12 col-xl-4 mb-3 mb-xl-0">
-            <label
-              className="mb-2 small d-block"
-              style={FILTER_LABEL_STYLE}
-            >
+            <label className="mb-2 text-muted small d-block">
               Поиск по заголовкам
             </label>
             <input
               type="text"
-              className="form-control alerta-filter-control"
+              className="form-control"
               placeholder="Поиск по названию публикации"
               value={titleSearch}
               onChange={isInteractive ? this.handleTitleSearchChange : undefined}
@@ -321,63 +281,24 @@ class Buttons extends Component {
           </div>
 
           <div className="col-12 col-xl-4">
-            <label
-              className="mb-2 small d-block"
-              style={FILTER_LABEL_STYLE}
-            >
+            <label className="mb-2 text-muted small d-block">
               Сортировка по дате
             </label>
-            <div className="position-relative">
-              <button
-                type="button"
-                className="form-control alerta-filter-control d-flex align-items-center justify-content-between text-left"
-                onClick={isInteractive ? this.toggleSortDropdown : undefined}
-                disabled={!isInteractive}
-              >
-                <span className="text-truncate pr-3 alerta-filter-control__text">
-                  {sortOrderLabel}
-                </span>
-                <i
-                  className={`mdi ${
-                    isInteractive && this.state.isSortDropdownOpen
-                      ? 'mdi-chevron-up'
-                      : 'mdi-chevron-down'
-                  }`}
-                  style={FILTER_META_STYLE}
-                ></i>
-              </button>
-
-              {isInteractive && this.state.isSortDropdownOpen ? (
-                <div
-                  className="border rounded mt-2 px-2 py-2 position-absolute w-100 alerta-filter-dropdown"
-                  style={FILTER_DROPDOWN_STYLE}
-                >
-                  <button
-                    type="button"
-                    className="btn btn-link alerta-filter-menu-item text-left"
-                    onClick={() => this.selectSortOrder('newest')}
-                  >
-                    Сначала новые
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-link alerta-filter-menu-item text-left"
-                    onClick={() => this.selectSortOrder('oldest')}
-                  >
-                    Сначала старые
-                  </button>
-                </div>
-              ) : null}
-            </div>
+            <select
+              className="form-control"
+              value={sortOrder}
+              onChange={isInteractive ? this.handleSortOrderChange : undefined}
+              disabled={!isInteractive}
+            >
+              <option value="newest">Сначала новые</option>
+              <option value="oldest">Сначала старые</option>
+            </select>
           </div>
         </div>
 
         <div className="d-flex flex-column flex-xl-row align-items-xl-center justify-content-between mt-3 pt-3 border-top">
           <div className="form-check mb-3 mb-xl-0">
-            <label
-              className="form-check-label"
-              style={{ color: '#ffffff' }}
-            >
+            <label className="form-check-label">
               <input
                 type="checkbox"
                 className="form-check-input"
@@ -391,14 +312,14 @@ class Buttons extends Component {
           </div>
 
           <div className="d-flex align-items-center">
-            <span className="small mr-3" style={FILTER_META_STYLE}>
+            <span className="text-muted small mr-3">
               {resultCount !== null
                 ? `Найдено записей: ${resultCount}`
                 : 'Фильтры будут активны после подключения источника'}
             </span>
             <button
               type="button"
-              className="btn btn-sm alerta-filter-reset-button"
+              className="btn btn-outline-light btn-sm"
               onClick={isInteractive ? this.resetNewsFilters : undefined}
               disabled={!isInteractive}
             >
@@ -461,28 +382,45 @@ class Buttons extends Component {
             {!isLoading && !error && visibleItems.length > 0 ? (
               <div style={scrollContainerStyle}>
                 <div className="table-responsive">
-                  <table className="table">
+                  <table className="table text-white">
                     <thead>
                       <tr>
-                        <th style={TABLE_TEXT_STYLE}>Источник</th>
-                        <th style={TABLE_TEXT_STYLE}>Заголовок</th>
-                        <th style={TABLE_TEXT_STYLE}>Дата публикации</th>
-                        <th style={TABLE_TEXT_STYLE}>Ссылка</th>
+                        <th>Источник</th>
+                        <th>Заголовок</th>
+                        <th>Интерпретация</th>
+                        <th>Дата публикации</th>
+                        <th>Ссылка</th>
                       </tr>
                     </thead>
                     <tbody>
                       {visibleItems.map((item) => {
                         const isOpened = this.state.openedArticleId === item._id;
+                        const interpretation = buildInterpretationMeta(item);
 
                         return (
                           <React.Fragment key={item._id}>
                             <tr
                               onClick={() => this.toggleArticle(item._id)}
+                              className="text-white"
                               style={{ cursor: 'pointer' }}
                             >
-                              <td style={TABLE_TEXT_STYLE}>{item.source || 'Не указан'}</td>
-                              <td style={TABLE_TEXT_STYLE}>{item.title || 'Без заголовка'}</td>
-                              <td style={TABLE_TEXT_STYLE}>{formatPublishedAt(item.publishedAt)}</td>
+                              <td>{item.source || 'Не указан'}</td>
+                              <td>{item.title || 'Без заголовка'}</td>
+                              <td>
+                                <div>
+                                  <span className={interpretation.groundingBadgeClass}>
+                                    {interpretation.groundingLabel}
+                                  </span>
+                                </div>
+                                <div className="text-muted small mt-1">
+                                  {interpretation.primaryReference
+                                    ? `${interpretation.primaryReference.reference_id} · ${interpretation.matchCount}`
+                                    : interpretation.isNovel
+                                      ? 'нет эталона'
+                                      : interpretation.groundingPercent}
+                                </div>
+                              </td>
+                              <td>{formatPublishedAt(item.publishedAt)}</td>
                               <td>
                                 {item.url ? (
                                   <a
@@ -494,7 +432,7 @@ class Buttons extends Component {
                                     Открыть
                                   </a>
                                 ) : (
-                                  <span style={MUTED_TEXT_STYLE}>Нет ссылки</span>
+                                  <span className="text-muted">Нет ссылки</span>
                                 )}
                               </td>
                             </tr>
@@ -516,37 +454,45 @@ class Buttons extends Component {
   renderExpandedArticleRow(item) {
     const textState = buildPreview(item.text);
     const showFullText = this.state.fullyExpandedArticleId === item._id;
+    const interpretation = buildInterpretationMeta(item);
 
     return (
       <tr key={`${item._id}-expanded`}>
-        <td colSpan="4" className="border-top-0 pt-0">
-          <div
-            className="border rounded p-4 mt-2"
-            style={{
-              backgroundColor: '#191c24',
-              borderColor: '#2c3553',
-              color: '#ffffff',
-            }}
-          >
+        <td colSpan="5" className="border-top-0 pt-0">
+          <div className="border rounded p-4 mt-2 bg-dark">
             <div className="mb-3">
-              <div className="small mb-2" style={MUTED_TEXT_STYLE}>
-                {item.source || 'Не указан'}
-              </div>
-              <h5 className="mb-2" style={TABLE_TEXT_STYLE}>
-                {item.title || 'Без заголовка'}
-              </h5>
-              <div className="small" style={MUTED_TEXT_STYLE}>
+              <div className="text-muted small mb-2">{item.source || 'Не указан'}</div>
+              <h5 className="mb-2">{item.title || 'Без заголовка'}</h5>
+              <div className="text-muted small">
                 {formatPublishedAt(item.publishedAt)}
               </div>
             </div>
-            <div
-              className="mb-3"
-              style={{
-                whiteSpace: 'pre-line',
-                lineHeight: 1.7,
-                color: '#ffffff',
-              }}
-            >
+            <div className="mb-3 border rounded p-3" style={{ borderColor: '#2c3553' }}>
+              <div className="d-flex flex-wrap align-items-center mb-2">
+                <span className={interpretation.groundingBadgeClass}>
+                  {interpretation.groundingLabel}
+                </span>
+                <span className="text-muted small ml-2">
+                  grounding {interpretation.groundingPercent}
+                </span>
+              </div>
+              <div className="text-muted small mb-2">
+                {item.interpretation_summary || 'Интерпретация для этой записи пока не сформирована.'}
+              </div>
+              <div className="text-muted small">
+                {interpretation.primaryReference
+                  ? `Reference: ${interpretation.primaryReference.reference_id} (score ${Number(
+                      interpretation.primaryReference.score || 0,
+                    ).toFixed(2)})`
+                  : interpretation.isNovel
+                    ? 'Похожа на новую или нетипичную угрозу: эталон не найден'
+                    : 'Reference match не найден'}
+              </div>
+              <div className="text-muted small mt-2">
+                Совпадений найдено: {interpretation.matchCount}
+              </div>
+            </div>
+            <div className="mb-3" style={{ whiteSpace: 'pre-line', lineHeight: 1.7 }}>
               {showFullText ? textState.fullText : textState.preview}
             </div>
             <div className="d-flex flex-wrap align-items-center">

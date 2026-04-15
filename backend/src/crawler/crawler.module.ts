@@ -7,10 +7,12 @@ import { CrawlerService } from './crawler.service';
 import { CrawlerController } from './crawler.controller';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from '../auth/auth.module';
+import { ReferenceIntelModule } from '../reference-intel/reference-intel.module';
 
 @Module({
   imports: [
     AuthModule,
+    ReferenceIntelModule,
     MongooseModule.forFeature([{ name: Article.name, schema: ArticleSchema }]),
     ConfigModule,
   ],

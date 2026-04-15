@@ -4,6 +4,10 @@ import { VectorMap } from 'react-jvectormap';
 import { API_ENDPOINTS } from '../../api/endpoints';
 import { fetchArticles } from '../../api/articles';
 import { getThreatCategoryLabel } from '../../utils/threatLabels';
+
+function canRenderVectorMap() {
+  return typeof window !== 'undefined';
+}
 const SEVERITY_SCORES = {
   critical: 1,
   high: 0.8,
@@ -66,8 +70,16 @@ function average(values) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function clampScore(value) {
+  return Math.max(0, Math.min(1, value));
+}
+
 function formatScore(value) {
   return value.toFixed(2);
+}
+
+function formatPercent(value) {
+  return `${Math.round(clampScore(value) * 100)}%`;
 }
 
 function formatDate(value) {
@@ -146,6 +158,32 @@ function getStatusLabel(article) {
   return 'Новость';
 }
 
+function buildPriorityReason(article) {
+  const reasons = [];
+  if (article.severity === 'critical' || article.severity === 'high') {
+    reasons.push(`уровень ${article.severity}`);
+  }
+
+  if (safeNumber(article.active_exploitation) >= 0.6) {
+    reasons.push(`эксплуатация ${formatPercent(article.active_exploitation)}`);
+  }
+
+  const avgImpact = average([
+    safeNumber(article.impact_confidentiality),
+    safeNumber(article.impact_integrity),
+    safeNumber(article.impact_availability),
+  ]);
+  if (avgImpact >= 0.6) {
+    reasons.push(`ущерб ${formatPercent(avgImpact)}`);
+  }
+
+  if (safeNumber(article.llm_confidence) >= 0.65) {
+    reasons.push(`уверенность ${formatPercent(article.llm_confidence)}`);
+  }
+
+  return reasons.length ? reasons.join(', ') : 'выделено по суммарному баллу риска';
+}
+
 function collectTopGroups(items, field, limit) {
   const groups = items.reduce((accumulator, item) => {
     const key = item[field] || 'Не указано';
@@ -157,6 +195,64 @@ function collectTopGroups(items, field, limit) {
     .sort((left, right) => right[1] - left[1])
     .slice(0, limit)
     .map(([label, count]) => ({ label, count }));
+}
+
+function normalizeSeverityBucket(severity) {
+  if (severity === 'critical' || severity === 'high') {
+    return 'high';
+  }
+
+  if (severity === 'medium') {
+    return 'medium';
+  }
+
+  if (severity === 'low') {
+    return 'low';
+  }
+
+  return 'n/a';
+}
+
+function buildSeverityBreakdown(threats) {
+  const counts = threats.reduce(
+    (accumulator, article) => {
+      const bucket = normalizeSeverityBucket(article.severity);
+      accumulator[bucket] += 1;
+      return accumulator;
+    },
+    { high: 0, medium: 0, low: 0, 'n/a': 0 },
+  );
+
+  return [
+    {
+      key: 'high',
+      label: 'high',
+      count: counts.high,
+      color: '#fc424a',
+      description: 'Высокий уровень опасности',
+    },
+    {
+      key: 'medium',
+      label: 'medium',
+      count: counts.medium,
+      color: '#ffab00',
+      description: 'Средний уровень опасности',
+    },
+    {
+      key: 'low',
+      label: 'low',
+      count: counts.low,
+      color: '#00d25b',
+      description: 'Низкий уровень опасности',
+    },
+    {
+      key: 'n/a',
+      label: 'n/a',
+      count: counts['n/a'],
+      color: '#6c7293',
+      description: 'Уровень опасности не указан',
+    },
+  ];
 }
 
 function buildDashboardData(articles) {
@@ -195,11 +291,32 @@ function buildDashboardData(articles) {
     ? threats.filter((article) => article.severity === 'high' || article.severity === 'critical').length /
       threats.length
     : 0;
-  const topCategories = collectTopGroups(threats, 'category', 3).map((item) => ({
-    ...item,
-    label: getThreatCategoryLabel(item.label, 'Не указана'),
-  }));
+  const severityBreakdown = buildSeverityBreakdown(threats);
   const topSources = collectTopGroups(sortedArticles, 'source', 5);
+  const prioritizedThreats = [...threats]
+    .map((article) => {
+      const avgImpact = average([
+        safeNumber(article.impact_confidentiality),
+        safeNumber(article.impact_integrity),
+        safeNumber(article.impact_availability),
+      ]);
+      const severityScore = SEVERITY_SCORES[article.severity] || 0;
+      const priorityScore = average([
+        severityScore,
+        avgImpact,
+        safeNumber(article.active_exploitation),
+        safeNumber(article.llm_confidence),
+      ]);
+
+      return {
+        ...article,
+        avgImpact,
+        priorityScore,
+        priorityReason: buildPriorityReason(article),
+      };
+    })
+    .sort((left, right) => right.priorityScore - left.priorityScore)
+    .slice(0, 5);
 
   const geographyGroups = threats.reduce((accumulator, article) => {
     const code = normalizeCountry(article.country);
@@ -246,8 +363,9 @@ function buildDashboardData(articles) {
     avgImpact,
     riskScore,
     highSeverityRatio,
-    topCategories,
+    severityBreakdown,
     topSources,
+    prioritizedThreats,
     geographyRows,
     mapData,
   };
@@ -258,6 +376,7 @@ export class Dashboard extends Component {
     articles: [],
     loading: true,
     error: null,
+    canUseVectorMap: canRenderVectorMap(),
   };
 
   transactionHistoryOptions = {
@@ -282,13 +401,37 @@ export class Dashboard extends Component {
     this.loadArticles();
   }
 
-  async loadArticles() {
-    try {
-      const { items: articles } = await fetchArticles({
-        page: 1,
-        limit: 200,
+  async fetchAllArticles() {
+    const pageSize = 200;
+    let page = 1;
+    let totalPages = 1;
+    const allArticles = [];
+
+    while (page <= totalPages) {
+      const { items, meta } = await fetchArticles({
+        page,
+        limit: pageSize,
         includeText: 0,
       });
+
+      if (Array.isArray(items) && items.length) {
+        allArticles.push(...items);
+      }
+
+      totalPages =
+        meta && Number.isInteger(meta.totalPages) && meta.totalPages > 0
+          ? meta.totalPages
+          : 1;
+
+      page += 1;
+    }
+
+    return allArticles;
+  }
+
+  async loadArticles() {
+    try {
+      const articles = await this.fetchAllArticles();
       this.setState({ articles, loading: false, error: null });
     } catch (error) {
       this.setState({
@@ -310,7 +453,7 @@ export class Dashboard extends Component {
   }
 
   render() {
-    const { articles, loading, error } = this.state;
+    const { articles, loading, error, canUseVectorMap } = this.state;
 
     if (loading) {
       return this.renderEmptyState('Загружаю публикации и метрики из backend...');
@@ -333,24 +476,24 @@ export class Dashboard extends Component {
       avgImpact,
       riskScore,
       highSeverityRatio,
-      topCategories,
+      severityBreakdown,
       topSources,
+      prioritizedThreats,
       geographyRows,
       mapData,
     } = buildDashboardData(articles);
 
     const categoryChartData = {
-      labels: topCategories.map((item) => item.label),
+      labels: severityBreakdown.map((item) => item.label),
       datasets: [
         {
-          data: topCategories.map((item) => item.count),
-          backgroundColor: ['#ffab00', '#00d25b', '#fc424a'],
+          data: severityBreakdown.map((item) => item.count),
+          backgroundColor: severityBreakdown.map((item) => item.color),
         },
       ],
     };
 
-    const latestArticles = sortedArticles.slice(0, 5);
-    const recentThreats = threats.slice(0, 5);
+    const latestArticles = sortedArticles.slice(0, 8);
 
     return (
       <div>
@@ -445,14 +588,16 @@ export class Dashboard extends Component {
                     <p className="text-small text-muted text-center mb-0">угроз</p>
                   </div>
                 </div>
-                {topCategories.map((item) => (
+                {severityBreakdown.map((item) => (
                   <div
-                    key={item.label}
+                    key={item.key}
                     className="bg-gray-dark d-flex d-md-block d-xl-flex flex-row py-3 px-4 px-md-3 px-xl-4 rounded mt-3"
                   >
                     <div className="text-md-center text-xl-left">
-                      <h6 className="mb-1">{item.label}</h6>
-                      <p className="text-muted mb-0">Количество материалов в категории</p>
+                      <h6 className="mb-1" style={{ color: item.color }}>
+                        {item.label}
+                      </h6>
+                      <p className="text-muted mb-0">{item.description}</p>
                     </div>
                     <div className="align-self-center flex-grow text-right text-md-center text-xl-right py-md-2 py-xl-0">
                       <h6 className="font-weight-bold mb-0">{item.count}</h6>
@@ -467,7 +612,7 @@ export class Dashboard extends Component {
             <div className="card">
               <div className="card-body">
                 <div className="d-flex flex-row justify-content-between">
-                  <h4 className="card-title mb-1">Последние материалы</h4>
+                    <h4 className="card-title mb-1">Последние материалы</h4>
                   <p className="text-muted mb-1">Backend /articles</p>
                 </div>
                 <div className="row">
@@ -490,7 +635,7 @@ export class Dashboard extends Component {
                             <div className="mr-auto text-sm-right pt-2 pt-sm-0">
                               <p className="text-muted">{formatRelativeTime(article.publishedAt || article.extracted_at)}</p>
                               <p className="text-muted mb-0">
-                                severity {article.severity || 'n/a'}, confidence {formatScore(safeNumber(article.llm_confidence))}
+                                уровень {article.severity || 'n/a'}, уверенность {formatPercent(safeNumber(article.llm_confidence))}
                               </p>
                             </div>
                           </div>
@@ -508,13 +653,15 @@ export class Dashboard extends Component {
           <div className="col-sm-4 grid-margin">
             <div className="card">
               <div className="card-body">
-                <h5>Средний confidence</h5>
+                <h5>Уверенность автоклассификации</h5>
                 <div className="row">
                   <div className="col-8 col-sm-12 col-xl-8 my-auto">
                     <div className="d-flex d-sm-block d-md-flex align-items-center">
                       <h2 className="mb-0">{formatScore(avgConfidence)}</h2>
                     </div>
-                    <h6 className="text-muted font-weight-normal">Уверенность классификации по материалам типа threat</h6>
+                    <h6 className="text-muted font-weight-normal">
+                      Насколько уверенно модель относит материалы к угрозам. Чем ближе к 1.00, тем устойчивее классификация.
+                    </h6>
                   </div>
                   <div className="col-4 col-sm-12 col-xl-4 text-center text-xl-right">
                     <i className="icon-lg mdi mdi-brain text-primary ml-auto"></i>
@@ -526,13 +673,15 @@ export class Dashboard extends Component {
           <div className="col-sm-4 grid-margin">
             <div className="card">
               <div className="card-body">
-                <h5>Средний impact score</h5>
+                <h5>Средний ожидаемый ущерб</h5>
                 <div className="row">
                   <div className="col-8 col-sm-12 col-xl-8 my-auto">
                     <div className="d-flex d-sm-block d-md-flex align-items-center">
                       <h2 className="mb-0">{formatScore(avgImpact)}</h2>
                     </div>
-                    <h6 className="text-muted font-weight-normal">Среднее по confidentiality, integrity и availability</h6>
+                    <h6 className="text-muted font-weight-normal">
+                      Средняя оценка влияния на конфиденциальность, целостность и доступность по угрозам в выборке.
+                    </h6>
                   </div>
                   <div className="col-4 col-sm-12 col-xl-4 text-center text-xl-right">
                     <i className="icon-lg mdi mdi-crosshairs-gps text-danger ml-auto"></i>
@@ -544,14 +693,14 @@ export class Dashboard extends Component {
           <div className="col-sm-4 grid-margin">
             <div className="card">
               <div className="card-body">
-                <h5>Сводный risk score</h5>
+                <h5>Сводный индекс риска</h5>
                 <div className="row">
                   <div className="col-8 col-sm-12 col-xl-8 my-auto">
                     <div className="d-flex d-sm-block d-md-flex align-items-center">
                       <h2 className="mb-0">{formatScore(riskScore)}</h2>
                     </div>
                     <h6 className="text-muted font-weight-normal">
-                      Учитывает severity, confidence и active exploitation. High severity: {formatScore(highSeverityRatio)}
+                      Сводит в один показатель критичность, уверенность классификации и признаки активной эксплуатации. Доля high/critical: {formatPercent(highSeverityRatio)}.
                     </h6>
                   </div>
                   <div className="col-4 col-sm-12 col-xl-4 text-center text-xl-right">
@@ -569,7 +718,7 @@ export class Dashboard extends Component {
               <div className="card-body">
                 <h4 className="card-title">Последние классифицированные записи</h4>
                 <div className="table-responsive">
-                  <table className="table">
+                  <table className="table text-white alerta-dashboard-table">
                     <thead>
                       <tr>
                         <th>Источник</th>
@@ -637,10 +786,13 @@ export class Dashboard extends Component {
           <div className="col-md-12 col-xl-5 grid-margin stretch-card">
             <div className="card">
               <div className="card-body">
-                <h4 className="card-title">Приоритетные угрозы</h4>
+                <div className="d-flex flex-row justify-content-between">
+                  <h4 className="card-title">Приоритетные угрозы</h4>
+                  <p className="text-muted mb-1 small">Сортировка по severity, ущербу, эксплуатации и уверенности</p>
+                </div>
                 <div className="preview-list">
-                  {recentThreats.length ? (
-                    recentThreats.map((article) => (
+                  {prioritizedThreats.length ? (
+                    prioritizedThreats.map((article) => (
                       <div className="preview-item border-bottom" key={article.url}>
                         <div className="preview-item-content d-flex flex-grow">
                           <div className="flex-grow">
@@ -649,14 +801,10 @@ export class Dashboard extends Component {
                               <p className="text-muted text-small">{article.severity || 'n/a'}</p>
                             </div>
                             <p className="text-muted">
-                              {getThreatCategoryLabel(article.category, 'Без категории')} | exploit {formatScore(safeNumber(article.active_exploitation))} |
-                              impact {formatScore(
-                                average([
-                                  safeNumber(article.impact_confidentiality),
-                                  safeNumber(article.impact_integrity),
-                                  safeNumber(article.impact_availability),
-                                ]),
-                              )}
+                              {getThreatCategoryLabel(article.category, 'Без категории')} | суммарный индекс {formatScore(article.priorityScore)}
+                            </p>
+                            <p className="text-muted mb-0">
+                              Почему в приоритете: {article.priorityReason}
                             </p>
                           </div>
                         </div>
@@ -679,7 +827,7 @@ export class Dashboard extends Component {
                 <div className="row">
                   <div className="col-md-5">
                     <div className="table-responsive">
-                      <table className="table">
+                      <table className="table text-white alerta-dashboard-table">
                         <tbody>
                           {geographyRows.length ? (
                             geographyRows.map((row) => (
@@ -689,7 +837,7 @@ export class Dashboard extends Component {
                                 </td>
                                 <td>{row.label}</td>
                                 <td className="text-right">{row.count} угроз</td>
-                                <td className="text-right font-weight-medium">impact {formatScore(row.avgImpact)}</td>
+                                <td className="text-right font-weight-medium">ущерб {formatScore(row.avgImpact)}</td>
                               </tr>
                             ))
                           ) : (
@@ -704,28 +852,35 @@ export class Dashboard extends Component {
                     </div>
                   </div>
                   <div className="col-md-7">
-                    <div id="audience-map" className="vector-map"></div>
-                    <VectorMap
-                      map={'world_mill'}
-                      backgroundColor="transparent"
-                      panOnDrag={true}
-                      containerClassName="dashboard-vector-map"
-                      focusOn={{
-                        x: 0.5,
-                        y: 0.5,
-                        scale: 1,
-                        animate: true,
-                      }}
-                      series={{
-                        regions: [
-                          {
-                            scale: ['#3d3c3c', '#f2f2f2'],
-                            normalizeFunction: 'polynomial',
-                            values: mapData,
-                          },
-                        ],
-                      }}
-                    />
+                    {canUseVectorMap ? (
+                      <React.Fragment>
+                        <VectorMap
+                          map={'world_mill'}
+                          backgroundColor="transparent"
+                          panOnDrag={true}
+                          containerClassName="dashboard-vector-map"
+                          focusOn={{
+                            x: 0.5,
+                            y: 0.5,
+                            scale: 1,
+                            animate: true,
+                          }}
+                          series={{
+                            regions: [
+                              {
+                                scale: ['#3d3c3c', '#f2f2f2'],
+                                normalizeFunction: 'polynomial',
+                                values: mapData,
+                              },
+                            ],
+                          }}
+                        />
+                      </React.Fragment>
+                    ) : (
+                      <div className="border rounded p-4 text-white-50">
+                        Карта временно недоступна в текущей сборке. Данные по странам сохранены в таблице слева.
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
