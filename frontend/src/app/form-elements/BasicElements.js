@@ -65,7 +65,7 @@ function SectionCard({ title, description, children }) {
     <div className="card">
       <div className="card-body">
         <h4 className="card-title">{title}</h4>
-        <p className="card-description">{description}</p>
+        {description ? <p className="card-description">{description}</p> : null}
         {children}
       </div>
     </div>
@@ -172,7 +172,7 @@ export class BasicElements extends Component {
     return (
       <div>
         <div className="page-header">
-          <h3 className="page-title">Паспорт КИИ</h3>
+          <h3 className="page-title">Папорт объекта КИИ</h3>
           <nav aria-label="breadcrumb">
             <ol className="breadcrumb">
               <li className="breadcrumb-item">
@@ -181,7 +181,7 @@ export class BasicElements extends Component {
                 </a>
               </li>
               <li className="breadcrumb-item active" aria-current="page">
-                Паспорт КИИ
+                Папорт объекта КИИ
               </li>
             </ol>
           </nav>
@@ -192,7 +192,6 @@ export class BasicElements extends Component {
             <div className="col-12 grid-margin">
               <SectionCard
                 title="Профиль объекта"
-                description="Базовая идентификация объекта и его роль в модели риска."
               >
                 <div className="row">
                   <div className="col-md-6">
@@ -212,7 +211,7 @@ export class BasicElements extends Component {
                     <Form.Group>
                       <label htmlFor="objectType">Тип объекта</label>
                       <select
-                        className="form-control"
+                        className="form-control alerta-filter-control alerta-object-select"
                         id="objectType"
                         name="objectType"
                         value={form.objectType}
@@ -226,7 +225,7 @@ export class BasicElements extends Component {
                     <Form.Group>
                       <label htmlFor="criticalityClass">Класс значимости</label>
                       <select
-                        className="form-control"
+                        className="form-control alerta-filter-control alerta-object-select"
                         id="criticalityClass"
                         name="criticalityClass"
                         value={form.criticalityClass}
@@ -240,7 +239,7 @@ export class BasicElements extends Component {
                     <Form.Group>
                       <label htmlFor="industry">Отрасль</label>
                       <select
-                        className="form-control"
+                        className="form-control alerta-filter-control alerta-object-select"
                         id="industry"
                         name="industry"
                         value={form.industry}
@@ -295,12 +294,12 @@ export class BasicElements extends Component {
 
             <div className="col-md-6 grid-margin stretch-card">
               <SectionCard
-                title="Бизнес-критичность"
+                title="Критичность"
                 description="Поля, которые потом будут влиять на вес объекта в расчёте риска."
               >
                 <ScoreField
                   id="businessCriticality"
-                  label="Бизнес-критичность объекта"
+                  label="Критичность объекта"
                   value={form.businessCriticality}
                   onChange={this.handleInputChange}
                   helperText="От 0 до 1. Чем выше, тем сильнее объект влияет на итоговый риск."
@@ -351,6 +350,7 @@ export class BasicElements extends Component {
                   label="Оценка поверхности атаки"
                   value={form.attackSurface}
                   onChange={this.handleInputChange}
+                  helperText="Показывает, насколько много внешних и внутренних точек входа доступно атакующему."
                   name="attackSurface"
                 />
                 <ScoreField
@@ -457,13 +457,13 @@ export class BasicElements extends Component {
 
             <div className="col-md-6 grid-margin stretch-card">
               <SectionCard
-                title="Зрелость защиты"
+                title="Качество защиты"
                 description="Здесь задаются качественные оценки защитных мер, которые позже можно перевести в числовые веса."
               >
                 <Form.Group>
-                  <label htmlFor="securityMaturity">Зрелость ИБ</label>
+                  <label htmlFor="securityMaturity">Качество ИБ</label>
                   <select
-                    className="form-control"
+                    className="form-control alerta-filter-control alerta-object-select"
                     id="securityMaturity"
                     name="securityMaturity"
                     value={form.securityMaturity}
@@ -473,9 +473,9 @@ export class BasicElements extends Component {
                   </select>
                 </Form.Group>
                 <Form.Group>
-                  <label htmlFor="monitoringMaturity">Зрелость мониторинга</label>
+                  <label htmlFor="monitoringMaturity">Качество мониторинга</label>
                   <select
-                    className="form-control"
+                    className="form-control alerta-filter-control alerta-object-select"
                     id="monitoringMaturity"
                     name="monitoringMaturity"
                     value={form.monitoringMaturity}
@@ -485,9 +485,9 @@ export class BasicElements extends Component {
                   </select>
                 </Form.Group>
                 <Form.Group>
-                  <label htmlFor="patchMaturity">Зрелость патч-менеджмента</label>
+                  <label htmlFor="patchMaturity">Качество патч-менеджмента</label>
                   <select
-                    className="form-control"
+                    className="form-control alerta-filter-control alerta-object-select"
                     id="patchMaturity"
                     name="patchMaturity"
                     value={form.patchMaturity}
@@ -501,11 +501,9 @@ export class BasicElements extends Component {
 
             <div className="col-12 grid-margin">
               <SectionCard
-                title="Рабочие комментарии"
-                description="Наблюдения аналитика, которые пока не участвуют в формуле, но важны для паспорта."
+                title="Комментарии"
               >
                 <Form.Group className="mb-0">
-                  <label htmlFor="comments">Комментарии</label>
                   <Form.Control
                     as="textarea"
                     rows={6}

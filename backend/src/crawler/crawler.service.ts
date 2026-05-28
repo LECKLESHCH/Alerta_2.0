@@ -8,7 +8,7 @@ import { OpenAIEmbeddings, ChatOpenAI } from '@langchain/openai';
 import * as fs from 'fs';
 import * as path from 'path';
 import { chromium } from 'playwright'; // Импортируем Playwright
-import { execFile } from 'child_process';
+import { execFile, spawn } from 'child_process';
 import { promisify } from 'util';
 import { ReferenceIntelService } from '../reference-intel/reference-intel.service';
 
@@ -194,6 +194,11 @@ function inferCountryFromContext(input: {
   }
 
   return 'Global';
+}
+
+function containsCyrillic(value: string | null): boolean {
+  if (!value) return false;
+  return /[А-Яа-яЁё]/.test(value);
 }
 
 function sleep(ms: number): Promise<void> {
@@ -1729,20 +1734,20 @@ export class CrawlerService implements OnModuleInit {
   private readonly runtimeLogs: string[] = [];
   private readonly maxRuntimeLogs = 500;
   private sources: Source[] = [];
-  private qdrantClient: QdrantClient;
-  private embeddings: OpenAIEmbeddings;
-  private chatOpenAI: ChatOpenAI;
-  private classifierModel: string;
-  private classifierMaxTokens: number;
-  private classifierTimeoutMs: number;
-  private embeddingTimeoutMs: number;
-  private disableLlm: boolean;
-  private disableEmbeddings: boolean;
-  private crawlerDebug: boolean;
-  private crawlConcurrency: number;
-  private sourceConcurrency: number;
+  private qdrantClient!: QdrantClient;
+  private embeddings!: OpenAIEmbeddings;
+  private chatOpenAI!: ChatOpenAI;
+  private classifierModel!: string;
+  private classifierMaxTokens!: number;
+  private classifierTimeoutMs!: number;
+  private embeddingTimeoutMs!: number;
+  private disableLlm!: boolean;
+  private disableEmbeddings!: boolean;
+  private crawlerDebug!: boolean;
+  private crawlConcurrency!: number;
+  private sourceConcurrency!: number;
   private crawlAllRunning = false;
-  private activeCrawlScope: 'all' | 'sites' | null = null;
+  private activeCrawlScope: 'all' | 'sites' | 'telegram' | 'forums' | null = null;
   private readonly inFlightUrls = new Set<string>();
 
   constructor(
@@ -1909,6 +1914,30 @@ export class CrawlerService implements OnModuleInit {
     }
   }
 
+  private async crawlSiteSourcesOnly() {
+    this.logger.log('--- START CRAWLING SITES ---');
+    try {
+      await runWithConcurrency(
+        this.sources,
+        this.sourceConcurrency,
+        async (source) => {
+          this.logger.log(`Crawling source: ${source.name}`);
+          try {
+            await this.crawlSource(source);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Source crawl failed for ${source.name}: ${message}`);
+          }
+        },
+      );
+      this.logger.log('--- CRAWLING SITES FINISHED ---');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Site crawl pipeline failed: ${message}`);
+      throw error;
+    }
+  }
+
   async crawlAllSources() {
     if (this.crawlAllRunning) {
       this.logger.warn('crawlAllSources уже выполняется, повторный запуск пропущен');
@@ -1917,17 +1946,8 @@ export class CrawlerService implements OnModuleInit {
 
     this.crawlAllRunning = true;
     this.activeCrawlScope = this.activeCrawlScope || 'all';
-    this.logger.log('--- START CRAWLING ---');
     try {
-      await runWithConcurrency(
-        this.sources,
-        this.sourceConcurrency,
-        async (source) => {
-        this.logger.log(`Crawling source: ${source.name}`);
-        await this.crawlSource(source);
-        },
-      );
-      this.logger.log('--- CRAWLING FINISHED ---');
+      await this.crawlSiteSourcesOnly();
     } finally {
       this.crawlAllRunning = false;
       this.activeCrawlScope = null;
@@ -1940,7 +1960,21 @@ export class CrawlerService implements OnModuleInit {
     }
 
     this.activeCrawlScope = 'all';
-    void this.crawlAllSources();
+    void (async () => {
+      this.crawlAllRunning = true;
+      this.logger.log('--- START FULL CRAWL (sites + forums) ---');
+      try {
+        await this.crawlSiteSourcesOnly();
+        await this.crawlForumsFromPrototype(false);
+        this.logger.log('--- FULL CRAWL FINISHED ---');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Full crawl failed: ${message}`);
+      } finally {
+        this.crawlAllRunning = false;
+        this.activeCrawlScope = null;
+      }
+    })();
     return true;
   }
 
@@ -1954,11 +1988,31 @@ export class CrawlerService implements OnModuleInit {
     return true;
   }
 
+  startTelegramCrawl(): boolean {
+    if (this.crawlAllRunning) {
+      return false;
+    }
+
+    this.activeCrawlScope = 'telegram';
+    void this.crawlTelegramFromOsint();
+    return true;
+  }
+
+  startForumCrawl(): boolean {
+    if (this.crawlAllRunning) {
+      return false;
+    }
+
+    this.activeCrawlScope = 'forums';
+    void this.crawlForumsFromPrototype();
+    return true;
+  }
+
   isCrawlRunning(): boolean {
     return this.crawlAllRunning;
   }
 
-  getActiveCrawlScope(): 'all' | 'sites' | null {
+  getActiveCrawlScope(): 'all' | 'sites' | 'telegram' | 'forums' | null {
     return this.activeCrawlScope;
   }
 
@@ -1973,6 +2027,516 @@ export class CrawlerService implements OnModuleInit {
       lines: lines.length ? lines : ['Логи текущего процесса пока пусты.'],
       source: 'runtime-buffer',
     };
+  }
+
+  private async crawlForumsFromPrototype(manageState = true): Promise<void> {
+    if (manageState && this.crawlAllRunning) {
+      this.logger.warn('Forum crawl already running, skipping duplicate launch');
+      return;
+    }
+
+    if (manageState) {
+      this.crawlAllRunning = true;
+      this.activeCrawlScope = 'forums';
+    }
+    this.logger.log('--- START FORUM INGEST (prototype) ---');
+
+    try {
+      const forumDir = path.resolve(process.cwd(), '..', 'output', 'forum-prototype');
+      const fallbackDir = path.resolve(process.cwd(), 'output', 'forum-prototype');
+      const targetDir = fs.existsSync(forumDir) ? forumDir : fallbackDir;
+
+      if (!fs.existsSync(targetDir)) {
+        this.logger.warn(`Forum prototype directory not found: ${targetDir}`);
+        return;
+      }
+
+      const files = fs
+        .readdirSync(targetDir)
+        .filter((name) => name.endsWith('.json') && /^\d{4}-\d{2}-\d{2}T/.test(name))
+        .sort((left, right) => right.localeCompare(left, 'en'));
+
+      if (files.length === 0) {
+        this.logger.warn(`No forum prototype files found in ${targetDir}`);
+        return;
+      }
+
+      let processed = 0;
+      let insertedOrUpdated = 0;
+      let skipped = 0;
+
+      const forumCollection = this.articleModel.db.collection('articles_forum');
+
+      const translateToRussian = async (
+        input: string,
+        label: string,
+      ): Promise<string> => {
+        if (!input.trim()) return input;
+        try {
+          const prompt = `Переведи на русский язык. Верни только перевод без пояснений.\nТип: ${label}\nТекст:\n${input}`;
+          const response = await withTimeout(
+            () => this.chatOpenAI.invoke(prompt),
+            this.classifierTimeoutMs,
+            `Forum translation (${label})`,
+          );
+          const content = normalizeModelContent(response?.content);
+          if (!content || !content.trim()) return input;
+          return content.trim();
+        } catch {
+          return input;
+        }
+      };
+
+      for (const fileName of files) {
+        const fullPath = path.join(targetDir, fileName);
+        this.logger.log(`Forum ingest: reading ${fileName}`);
+
+        let parsedFile: unknown = null;
+        try {
+          const raw = fs.readFileSync(fullPath, 'utf8');
+          parsedFile = safeJsonParse(raw);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          this.logger.error(`Failed to read forum file ${fileName}: ${message}`);
+          continue;
+        }
+
+        if (!isRecord(parsedFile) || !Array.isArray(parsedFile['results'])) {
+          this.logger.warn(`Forum file ${fileName} has invalid structure, skipping`);
+          continue;
+        }
+
+        const results = parsedFile['results'].filter(isRecord);
+
+        for (const item of results) {
+          processed += 1;
+          const thread = item['thread'];
+          const normalized = item['normalized'];
+
+          if (!isRecord(thread) || !isRecord(normalized)) {
+            skipped += 1;
+            continue;
+          }
+
+          const url = normalizeNullableString(String(thread['thread_url'] ?? '').trim());
+          if (!url) {
+            skipped += 1;
+            continue;
+          }
+
+          const existingForum = await forumCollection.findOne({
+            url,
+          });
+          if (
+            existingForum &&
+            containsCyrillic(normalizeNullableString(String(existingForum.title ?? ''))) &&
+            containsCyrillic(
+              normalizeNullableString(
+                String(existingForum.classification_reasoning ?? ''),
+              ),
+            ) &&
+            containsCyrillic(
+              normalizeNullableString(
+                String(existingForum.interpretation_summary ?? ''),
+              ),
+            ) &&
+            Number(existingForum.interpretation_grounding_score ?? 0) > 0 &&
+            Array.isArray(existingForum.interpreted_reference_matches) &&
+            existingForum.interpreted_reference_matches.length > 0
+          ) {
+            skipped += 1;
+            continue;
+          }
+
+          const sourceLabel = normalizeNullableString(
+            String(thread['source_label'] ?? thread['source_id'] ?? 'Forum'),
+          );
+          const source = sourceLabel ?? 'Forum';
+          const threadTitle = normalizeNullableString(String(thread['thread_title'] ?? ''));
+          const ruTitle = normalizeNullableString(String(normalized['russian_title'] ?? ''));
+          let title = ruTitle ?? threadTitle ?? 'Без заголовка';
+          if (!containsCyrillic(title) && title !== 'Без заголовка') {
+            title = await translateToRussian(title, 'title');
+          }
+
+          const ruSummary = normalizeNullableString(
+            String(normalized['russian_summary'] ?? ''),
+          );
+          const ruInterpretation = normalizeNullableString(
+            String(normalized['russian_interpretation'] ?? ''),
+          );
+          const body = normalizeNullableString(String(thread['body'] ?? ''));
+          let combinedText = [ruSummary, ruInterpretation, body]
+            .filter((part): part is string => Boolean(part))
+            .join('\n\n')
+            .trim();
+
+          if (!combinedText) {
+            skipped += 1;
+            continue;
+          }
+
+          if (!containsCyrillic(combinedText)) {
+            const toTranslate =
+              combinedText.length > 2400
+                ? `${combinedText.slice(0, 1400)}\n...\n${combinedText.slice(-800)}`
+                : combinedText;
+            combinedText = await translateToRussian(toTranslate, 'summary');
+          }
+
+          const publishedAtRaw = normalizeNullableString(
+            String(thread['published_at'] ?? ''),
+          );
+          const publishedAt = publishedAtRaw ? new Date(publishedAtRaw) : new Date();
+          const safePublishedAt = Number.isNaN(publishedAt.getTime())
+            ? new Date()
+            : publishedAt;
+
+          const categoryRaw = normalizeNullableString(
+            String(normalized['category'] ?? ''),
+          );
+          const subcategoryRaw = normalizeNullableString(
+            String(normalized['subcategory'] ?? ''),
+          );
+          const typeRaw = normalizeNullableString(String(normalized['type'] ?? ''));
+          const severityRaw = normalizeNullableString(
+            String(normalized['severity'] ?? ''),
+          );
+          const countryRaw = normalizeNullableString(
+            String(normalized['country'] ?? 'Global'),
+          );
+          let reasoning = normalizeNullableString(
+            String(normalized['reasoning_ru'] ?? ''),
+          );
+          if (reasoning && !containsCyrillic(reasoning)) {
+            reasoning = await translateToRussian(reasoning, 'reasoning');
+          }
+          const vulnerabilityType = normalizeNullableString(
+            String(normalized['vulnerability_type'] ?? ''),
+          );
+          let interpretationSummary = normalizeNullableString(
+            String(normalized['russian_interpretation'] ?? ''),
+          );
+          if (interpretationSummary && !containsCyrillic(interpretationSummary)) {
+            interpretationSummary = await translateToRussian(
+              interpretationSummary,
+              'interpretation',
+            );
+          }
+          const confidenceValue = Number(normalized['confidence'] ?? 0);
+          const llmConfidence =
+            Number.isFinite(confidenceValue) && confidenceValue >= 0
+              ? Math.min(confidenceValue, 1)
+              : 0;
+
+          const cveMentions = Array.isArray(normalized['cve_mentions'])
+            ? normalized['cve_mentions'].map((v) => String(v))
+            : [];
+          const vendorCandidates = Array.isArray(normalized['vendor_candidates'])
+            ? normalized['vendor_candidates'].map((v) => String(v))
+            : [];
+          const productCandidates = Array.isArray(normalized['product_candidates'])
+            ? normalized['product_candidates'].map((v) => String(v))
+            : [];
+          const evidenceTokens = Array.isArray(normalized['evidence_tokens'])
+            ? normalized['evidence_tokens'].map((v) => String(v))
+            : [];
+
+          const isThreat = typeRaw === 'threat';
+          const canonicalCategory = normalizeCategoryToCanonicalEnglish(categoryRaw);
+          let canonicalSubcategory = normalizeSubcategoryToCanonicalEnglish(
+            canonicalCategory,
+            subcategoryRaw,
+          );
+
+          if (isThreat && canonicalCategory && !canonicalSubcategory) {
+            const heuristic = buildHeuristicClassification({
+              title,
+              text: combinedText,
+              sourceName: source,
+              url,
+              hasThreatSignals: true,
+            });
+            const heuristicCategory = normalizeCategoryToCanonicalEnglish(
+              heuristic.category,
+            );
+            if (
+              heuristicCategory === canonicalCategory &&
+              heuristic.subcategory
+            ) {
+              canonicalSubcategory = normalizeSubcategoryToCanonicalEnglish(
+                canonicalCategory,
+                heuristic.subcategory,
+              );
+            }
+          }
+
+          if (isThreat && canonicalCategory && !canonicalSubcategory && !this.disableLlm) {
+            const subcategoryPrompt = `
+Верни ровно один JSON в одну строку: {"subcategory": string|null}
+Выбери наиболее точную ПОДКАТЕГОРИЮ для категории угрозы.
+Если данных недостаточно, верни null.
+
+Категория (EN): ${canonicalCategory}
+Заголовок: ${title}
+Текст: ${combinedText.length > 1200 ? `${combinedText.slice(0, 900)}\n...\n${combinedText.slice(-250)}` : combinedText}
+`;
+            try {
+              const response = await withTimeout(
+                () => this.chatOpenAI.invoke(subcategoryPrompt),
+                this.classifierTimeoutMs,
+                'Forum subcategory refinement',
+              );
+              const content = normalizeModelContent(response?.content);
+              const parsed = content ? extractJsonObjectFromText(content) : null;
+              if (isRecord(parsed) && (parsed['subcategory'] === null || typeof parsed['subcategory'] === 'string')) {
+                canonicalSubcategory = normalizeSubcategoryToCanonicalEnglish(
+                  canonicalCategory,
+                  parsed['subcategory'] === null ? null : String(parsed['subcategory']),
+                );
+              }
+            } catch (error) {
+              const message = error instanceof Error ? error.message : String(error);
+              this.logger.warn(`Forum subcategory refinement failed for ${url}: ${message}`);
+            }
+          }
+
+          const storedCategory = translateCategoryToRussian(canonicalCategory);
+          const storedSubcategory = translateSubcategoryToRussian(canonicalSubcategory);
+          const interpretationResult = isThreat
+            ? await this.referenceIntelService.interpretThreat({
+                title,
+                text: combinedText,
+                category: storedCategory,
+                subcategory: storedSubcategory,
+                severity:
+                  severityRaw === 'high' ||
+                  severityRaw === 'medium' ||
+                  severityRaw === 'low'
+                    ? severityRaw
+                    : null,
+                classification_reasoning: reasoning ?? 'Forum prototype ingest',
+                attack_vector: null,
+                target_sector: null,
+                cve_mentions: cveMentions,
+                vendor_candidates: vendorCandidates,
+                product_candidates: productCandidates,
+                technology_terms: [],
+                attack_techniques: [],
+                asset_type: null,
+                threat_actor: null,
+                malware_family: null,
+              })
+            : { grounding_score: 0, matches: [] };
+
+          const doc = {
+            url,
+            source,
+            title,
+            text: combinedText,
+            publishedAt: safePublishedAt,
+            author: normalizeNullableString(String(thread['author'] ?? '')) ?? '',
+            type: typeRaw === 'threat' ? 'threat' : 'news',
+            category: storedCategory,
+            subcategory: storedSubcategory,
+            severity:
+              severityRaw === 'high' ||
+              severityRaw === 'medium' ||
+              severityRaw === 'low'
+                ? severityRaw
+                : null,
+            country: countryRaw ?? 'Global',
+            vulnerability_type: vulnerabilityType,
+            classification_reasoning: reasoning ?? 'Forum prototype ingest',
+            llm_confidence: llmConfidence,
+            extracted_at: new Date(),
+            cve_mentions: cveMentions,
+            vendor_candidates: vendorCandidates,
+            product_candidates: productCandidates,
+            technology_terms: [],
+            attack_techniques: [],
+            evidence_tokens: evidenceTokens,
+            interpretation_summary: interpretationSummary ?? null,
+            interpretation_grounding_score:
+              interpretationResult.grounding_score,
+            interpreted_reference_matches: interpretationResult.matches,
+            updatedAt: new Date(),
+          };
+
+          try {
+            await forumCollection.updateOne(
+              { url },
+              {
+                $set: doc,
+                $setOnInsert: { createdAt: new Date() },
+              },
+              { upsert: true },
+            );
+            insertedOrUpdated += 1;
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Failed to upsert forum article ${url}: ${message}`);
+            skipped += 1;
+          }
+        }
+      }
+
+      this.logger.log(
+        `Forum ingest finished: processed=${processed}, upserted=${insertedOrUpdated}, skipped=${skipped}`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Forum ingest failed: ${message}`);
+    } finally {
+      if (manageState) {
+        this.crawlAllRunning = false;
+        this.activeCrawlScope = null;
+      }
+      this.logger.log('--- FORUM INGEST FINISHED ---');
+    }
+  }
+
+  private async crawlTelegramFromOsint(): Promise<void> {
+    if (this.crawlAllRunning) {
+      this.logger.warn('Telegram crawl already running, skipping duplicate launch');
+      return;
+    }
+
+    this.crawlAllRunning = true;
+    this.activeCrawlScope = 'telegram';
+    this.logger.log('--- START TELEGRAM CRAWL ---');
+
+    try {
+      const candidates = [
+        path.resolve(process.cwd(), '..', 'Telegram-OSINT-for-Cyber-Threat-Intelligence-Analysis-main'),
+        path.resolve(process.cwd(), 'Telegram-OSINT-for-Cyber-Threat-Intelligence-Analysis-main'),
+      ];
+      const tgDir = candidates.find((p) => fs.existsSync(path.join(p, 'scrape.py')));
+      if (!tgDir) {
+        this.logger.error('Telegram scraper directory not found (scrape.py missing)');
+        return;
+      }
+
+      const messagesLimitRaw =
+        this.configService.get<string>('TG_MESSAGES_LIMIT') ?? '500';
+      const messagesLimit = Number(messagesLimitRaw);
+      const safeMessagesLimit =
+        Number.isFinite(messagesLimit) && messagesLimit > 0
+          ? Math.min(Math.floor(messagesLimit), 2000)
+          : 500;
+
+      const maxEntitiesRaw =
+        this.configService.get<string>('TG_MAX_ENTITIES') ?? '5';
+      const maxEntities = Number(maxEntitiesRaw);
+      const safeMaxEntities =
+        Number.isFinite(maxEntities) && maxEntities > 0
+          ? Math.min(Math.floor(maxEntities), 50)
+          : 5;
+
+      const allowedChannelsRaw =
+        this.configService.get<string>('TG_ALLOWED_CHANNELS') ?? '';
+      const allowedChannelsFromEnv = allowedChannelsRaw
+        .split(',')
+        .map((item) => item.trim().replace(/^@/, ''))
+        .filter(Boolean);
+      const fallbackChannels = [
+        'Novostnik',
+        'securesectorinfo',
+        'dataleak',
+      ];
+      const allowedChannels =
+        allowedChannelsFromEnv.length > 0
+          ? allowedChannelsFromEnv
+          : fallbackChannels;
+
+      const allowedEntityIdsRaw =
+        this.configService.get<string>('TG_ALLOWED_ENTITY_IDS') ?? '';
+      const allowedEntityIds = allowedEntityIdsRaw
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      const entitiesFilter = [...allowedChannels, ...allowedEntityIds];
+      const requestedMaxEntities = entitiesFilter.length
+        ? Math.min(entitiesFilter.length, 50)
+        : safeMaxEntities;
+      const safeRequestedMaxEntities = Math.max(1, requestedMaxEntities);
+
+      const commandArgs = [
+        'scrape.py',
+        '--get-messages',
+        String(safeMessagesLimit),
+        '--max-entities',
+        String(safeRequestedMaxEntities),
+      ];
+      if (entitiesFilter.length) {
+        commandArgs.push('--entities', ...entitiesFilter);
+      }
+
+      this.logger.log(
+        `Running Telegram scrape.py with --get-messages ${safeMessagesLimit} --max-entities ${safeRequestedMaxEntities}${entitiesFilter.length ? ` --entities ${entitiesFilter.join(',')}` : ''}`,
+      );
+      if (!allowedChannelsFromEnv.length) {
+        this.logger.warn(
+          'TG_ALLOWED_CHANNELS is empty, using built-in fallback channel list',
+        );
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        const child = spawn('python3', commandArgs, {
+          cwd: tgDir,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
+
+        const flushLines = (
+          chunk: Buffer,
+          state: { buf: string },
+          onLine: (line: string) => void,
+        ) => {
+          state.buf += chunk.toString('utf8');
+          const lines = state.buf.split('\n');
+          state.buf = lines.pop() ?? '';
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed) onLine(trimmed);
+          }
+        };
+
+        const outState = { buf: '' };
+        const errState = { buf: '' };
+
+        child.stdout.on('data', (chunk) => {
+          flushLines(chunk, outState, (line) =>
+            this.logger.log(`[TG] ${line}`),
+          );
+        });
+
+        child.stderr.on('data', (chunk) => {
+          flushLines(chunk, errState, (line) =>
+            this.logger.warn(`[TG] ${line}`),
+          );
+        });
+
+        child.on('error', (error) => reject(error));
+
+        child.on('close', (code) => {
+          if (outState.buf.trim()) this.logger.log(`[TG] ${outState.buf.trim()}`);
+          if (errState.buf.trim()) this.logger.warn(`[TG] ${errState.buf.trim()}`);
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(new Error(`Telegram scraper exited with code ${code}`));
+          }
+        });
+      });
+      this.logger.log('--- TELEGRAM CRAWL FINISHED ---');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Telegram crawl failed: ${message}`);
+    } finally {
+      this.crawlAllRunning = false;
+      this.activeCrawlScope = null;
+    }
   }
 
   async crawlArticle(url: string) {

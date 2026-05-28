@@ -7,6 +7,7 @@ source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 
 mongo_exists=0
 qdrant_exists=0
+redis_exists=0
 
 if docker ps -a --format '{{.Names}}' | grep -qx 'alerta-mongo'; then
   mongo_exists=1
@@ -18,7 +19,12 @@ if docker ps -a --format '{{.Names}}' | grep -qx 'alerta-qdrant'; then
   docker start alerta-qdrant >/dev/null
 fi
 
-if [[ "$mongo_exists" -eq 0 && "$qdrant_exists" -eq 0 ]]; then
+if docker ps -a --format '{{.Names}}' | grep -qx 'alerta-redis'; then
+  redis_exists=1
+  docker start alerta-redis >/dev/null
+fi
+
+if [[ "$mongo_exists" -eq 0 && "$qdrant_exists" -eq 0 && "$redis_exists" -eq 0 ]]; then
   docker compose -f "$DOCKER_DIR/docker-compose.yml" up -d
 else
   if [[ "$mongo_exists" -eq 0 ]]; then
@@ -27,6 +33,10 @@ else
 
   if [[ "$qdrant_exists" -eq 0 ]]; then
     docker compose -f "$DOCKER_DIR/docker-compose.yml" up -d qdrant
+  fi
+
+  if [[ "$redis_exists" -eq 0 ]]; then
+    docker compose -f "$DOCKER_DIR/docker-compose.yml" up -d redis
   fi
 fi
 

@@ -34,3 +34,35 @@ export async function fetchArticles(query = {}) {
     meta: payload?.meta || null,
   };
 }
+
+export async function fetchAllArticles(query = {}, pageSize = 200) {
+  const normalizedPageSize = Math.max(1, Math.min(Number(pageSize) || 200, 200));
+  let page = 1;
+  let totalPages = 1;
+  const items = [];
+
+  do {
+    const response = await fetchArticles({
+      ...query,
+      page,
+      limit: normalizedPageSize,
+    });
+
+    if (Array.isArray(response.items) && response.items.length > 0) {
+      items.push(...response.items);
+    }
+
+    totalPages = Math.max(1, Number(response?.meta?.totalPages) || 1);
+    page += 1;
+  } while (page <= totalPages);
+
+  return {
+    items,
+    meta: {
+      page: 1,
+      limit: normalizedPageSize,
+      total: items.length,
+      totalPages,
+    },
+  };
+}

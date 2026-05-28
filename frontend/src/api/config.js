@@ -2,10 +2,15 @@ const runtimeHost =
   typeof window !== 'undefined' && window.location?.hostname
     ? window.location.hostname
     : '127.0.0.1';
-const runtimeProtocol =
+const isLocalHost =
+  runtimeHost === 'localhost' ||
+  runtimeHost === '127.0.0.1' ||
+  runtimeHost === '0.0.0.0';
+const runtimeProtocol = isLocalHost ? 'http:' : (
   typeof window !== 'undefined' && window.location?.protocol
     ? window.location.protocol
-    : 'http:';
+    : 'http:'
+);
 
 export const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL ||

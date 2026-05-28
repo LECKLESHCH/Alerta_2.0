@@ -82,6 +82,10 @@ function formatPercent(value) {
   return `${Math.round(clampScore(value) * 100)}%`;
 }
 
+function formatFlowShare(value) {
+  return `${(clampScore(value) * 100).toFixed(1)}%`;
+}
+
 function formatDate(value) {
   if (!value) {
     return 'Нет даты';
@@ -184,19 +188,6 @@ function buildPriorityReason(article) {
   return reasons.length ? reasons.join(', ') : 'выделено по суммарному баллу риска';
 }
 
-function collectTopGroups(items, field, limit) {
-  const groups = items.reduce((accumulator, item) => {
-    const key = item[field] || 'Не указано';
-    accumulator[key] = (accumulator[key] || 0) + 1;
-    return accumulator;
-  }, {});
-
-  return Object.entries(groups)
-    .sort((left, right) => right[1] - left[1])
-    .slice(0, limit)
-    .map(([label, count]) => ({ label, count }));
-}
-
 function normalizeSeverityBucket(severity) {
   if (severity === 'critical' || severity === 'high') {
     return 'high';
@@ -292,7 +283,44 @@ function buildDashboardData(articles) {
       threats.length
     : 0;
   const severityBreakdown = buildSeverityBreakdown(threats);
-  const topSources = collectTopGroups(sortedArticles, 'source', 5);
+  const sourceStatsMap = sortedArticles.reduce((accumulator, article) => {
+    const sourceLabel = article.source || article.channel || article.feed || article.dbCollection || 'Не указано';
+    if (!accumulator[sourceLabel]) {
+      accumulator[sourceLabel] = {
+        source: sourceLabel,
+        total: 0,
+        news: 0,
+        threats: 0,
+        confidenceValues: [],
+      };
+    }
+
+    const bucket = accumulator[sourceLabel];
+    bucket.total += 1;
+    if (article.type === 'threat') {
+      bucket.threats += 1;
+    } else {
+      bucket.news += 1;
+    }
+
+    const confidence = safeNumber(article.llm_confidence);
+    if (confidence > 0) {
+      bucket.confidenceValues.push(confidence);
+    }
+
+    return accumulator;
+  }, {});
+
+  const sourceStats = Object.values(sourceStatsMap)
+    .map((row) => ({
+      ...row,
+      aiConfidence: average(row.confidenceValues),
+      flowShare: sortedArticles.length ? row.total / sortedArticles.length : 0,
+    }))
+    .sort((left, right) => right.total - left.total)
+    .slice(0, 12);
+
+  const topSources = sourceStats.slice(0, 5);
   const prioritizedThreats = [...threats]
     .map((article) => {
       const avgImpact = average([
@@ -365,6 +393,7 @@ function buildDashboardData(articles) {
     highSeverityRatio,
     severityBreakdown,
     topSources,
+    sourceStats,
     prioritizedThreats,
     geographyRows,
     mapData,
@@ -470,7 +499,6 @@ export class Dashboard extends Component {
     const {
       sortedArticles,
       threats,
-      news,
       last24Hours,
       avgConfidence,
       avgImpact,
@@ -478,6 +506,7 @@ export class Dashboard extends Component {
       highSeverityRatio,
       severityBreakdown,
       topSources,
+      sourceStats,
       prioritizedThreats,
       geographyRows,
       mapData,
@@ -650,16 +679,16 @@ export class Dashboard extends Component {
         </div>
 
         <div className="row">
-          <div className="col-sm-4 grid-margin">
+          <div className="col-sm-4 grid-margin stretch-card">
             <div className="card">
-              <div className="card-body">
+              <div className="card-body d-flex flex-column">
                 <h5>Уверенность автоклассификации</h5>
                 <div className="row">
                   <div className="col-8 col-sm-12 col-xl-8 my-auto">
                     <div className="d-flex d-sm-block d-md-flex align-items-center">
                       <h2 className="mb-0">{formatScore(avgConfidence)}</h2>
                     </div>
-                    <h6 className="text-muted font-weight-normal">
+                    <h6 className="text-muted font-weight-normal alerta-kpi-description mb-0">
                       Насколько уверенно модель относит материалы к угрозам. Чем ближе к 1.00, тем устойчивее классификация.
                     </h6>
                   </div>
@@ -670,16 +699,16 @@ export class Dashboard extends Component {
               </div>
             </div>
           </div>
-          <div className="col-sm-4 grid-margin">
+          <div className="col-sm-4 grid-margin stretch-card">
             <div className="card">
-              <div className="card-body">
+              <div className="card-body d-flex flex-column">
                 <h5>Средний ожидаемый ущерб</h5>
                 <div className="row">
                   <div className="col-8 col-sm-12 col-xl-8 my-auto">
                     <div className="d-flex d-sm-block d-md-flex align-items-center">
                       <h2 className="mb-0">{formatScore(avgImpact)}</h2>
                     </div>
-                    <h6 className="text-muted font-weight-normal">
+                    <h6 className="text-muted font-weight-normal alerta-kpi-description mb-0">
                       Средняя оценка влияния на конфиденциальность, целостность и доступность по угрозам в выборке.
                     </h6>
                   </div>
@@ -690,16 +719,16 @@ export class Dashboard extends Component {
               </div>
             </div>
           </div>
-          <div className="col-sm-4 grid-margin">
+          <div className="col-sm-4 grid-margin stretch-card">
             <div className="card">
-              <div className="card-body">
+              <div className="card-body d-flex flex-column">
                 <h5>Сводный индекс риска</h5>
                 <div className="row">
                   <div className="col-8 col-sm-12 col-xl-8 my-auto">
                     <div className="d-flex d-sm-block d-md-flex align-items-center">
                       <h2 className="mb-0">{formatScore(riskScore)}</h2>
                     </div>
-                    <h6 className="text-muted font-weight-normal">
+                    <h6 className="text-muted font-weight-normal alerta-kpi-description mb-0">
                       Сводит в один показатель критичность, уверенность классификации и признаки активной эксплуатации. Доля high/critical: {formatPercent(highSeverityRatio)}.
                     </h6>
                   </div>
@@ -721,10 +750,12 @@ export class Dashboard extends Component {
                   <table className="table text-white alerta-dashboard-table">
                     <thead>
                       <tr>
+                        <th>Заголовок</th>
                         <th>Источник</th>
                         <th>Тип</th>
                         <th>Категория</th>
                         <th>Severity</th>
+                        <th>Уверенность ИИ</th>
                         <th>Страна</th>
                         <th>Дата</th>
                         <th>Статус</th>
@@ -733,7 +764,8 @@ export class Dashboard extends Component {
                     <tbody>
                       {sortedArticles.slice(0, 8).map((article) => (
                         <tr key={article.url}>
-                          <td>{article.source}</td>
+                          <td>{article.title || 'Без заголовка'}</td>
+                          <td>{article.source || article.channel || article.feed || article.dbCollection || 'Не указано'}</td>
                           <td>{article.type || 'n/a'}</td>
                           <td>{getThreatCategoryLabel(article.category, 'Без категории')}</td>
                           <td>
@@ -741,6 +773,7 @@ export class Dashboard extends Component {
                               {article.severity || 'n/a'}
                             </div>
                           </td>
+                          <td>{formatPercent(safeNumber(article.llm_confidence))}</td>
                           <td>{article.country || 'Не указано'}</td>
                           <td>{formatDate(article.publishedAt || article.extracted_at)}</td>
                           <td>{getStatusLabel(article)}</td>
@@ -760,24 +793,38 @@ export class Dashboard extends Component {
               <div className="card-body">
                 <div className="d-flex flex-row justify-content-between">
                   <h4 className="card-title">Топ источников</h4>
-                  <p className="text-muted mb-1 small">По текущей выборке</p>
                 </div>
-                <div className="preview-list">
-                  {topSources.map((source) => (
-                    <div className="preview-item border-bottom" key={source.label}>
-                      <div className="preview-item-content d-flex flex-grow">
-                        <div className="flex-grow">
-                          <div className="d-flex d-md-block d-xl-flex justify-content-between">
-                            <h6 className="preview-subject">{source.label}</h6>
-                            <p className="text-muted text-small">{source.count} записей</p>
-                          </div>
-                          <p className="text-muted">
-                            Доля в потоке: {formatScore(source.count / sortedArticles.length)}. Новостей: {news.length}, угроз: {threats.length}.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="table-responsive">
+                  <table className="table text-white alerta-dashboard-table">
+                    <thead>
+                      <tr>
+                        <th>Источник</th>
+                        <th className="text-right">Всего</th>
+                        <th className="text-right">Новости</th>
+                        <th className="text-right">Угрозы</th>
+                        <th className="text-right">Доверие ИИ</th>
+                        <th className="text-right">Доля потока</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sourceStats.length ? (
+                        sourceStats.map((source) => (
+                          <tr key={source.source}>
+                            <td>{source.source}</td>
+                            <td className="text-right">{source.total}</td>
+                            <td className="text-right">{source.news}</td>
+                            <td className="text-right">{source.threats}</td>
+                            <td className="text-right">{formatPercent(source.aiConfidence)}</td>
+                            <td className="text-right">{formatFlowShare(source.flowShare)}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="6" className="text-muted">Нет данных по источникам.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -788,7 +835,6 @@ export class Dashboard extends Component {
               <div className="card-body">
                 <div className="d-flex flex-row justify-content-between">
                   <h4 className="card-title">Приоритетные угрозы</h4>
-                  <p className="text-muted mb-1 small">Сортировка по severity, ущербу, эксплуатации и уверенности</p>
                 </div>
                 <div className="preview-list">
                   {prioritizedThreats.length ? (
@@ -804,7 +850,7 @@ export class Dashboard extends Component {
                               {getThreatCategoryLabel(article.category, 'Без категории')} | суммарный индекс {formatScore(article.priorityScore)}
                             </p>
                             <p className="text-muted mb-0">
-                              Почему в приоритете: {article.priorityReason}
+                              Приоритет: {article.priorityReason}
                             </p>
                           </div>
                         </div>
@@ -854,6 +900,8 @@ export class Dashboard extends Component {
                   <div className="col-md-7">
                     {canUseVectorMap ? (
                       <React.Fragment>
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                        </div>
                         <VectorMap
                           map={'world_mill'}
                           backgroundColor="transparent"
@@ -868,7 +916,7 @@ export class Dashboard extends Component {
                           series={{
                             regions: [
                               {
-                                scale: ['#3d3c3c', '#f2f2f2'],
+                                scale: ['#1f2433', '#fc424a'],
                                 normalizeFunction: 'polynomial',
                                 values: mapData,
                               },

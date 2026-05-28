@@ -2,6 +2,9 @@
   "name": "alerta-frontend",
   "version": "1.1.0",
   "private": true,
+  "engines": {
+    "node": "20.20.2"
+  },
   "dependencies": {
     "@lourenci/react-kanban": "^0.13.0",
     "@mdi/font": "^4.2.95",
@@ -61,6 +64,8 @@
     "typicons.font": "^2.0.9"
   },
   "scripts": {
+    "prestart": "node ../scripts/ensure-node-version.js",
+    "prebuild": "node ../scripts/ensure-node-version.js",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",

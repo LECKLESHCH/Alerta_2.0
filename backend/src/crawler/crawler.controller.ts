@@ -44,6 +44,32 @@ export class CrawlerController {
     };
   }
 
+  @Get('telegram')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async crawlTelegram() {
+    const started = this.crawlerService.startTelegramCrawl();
+    const status = started ? 'started' : 'already_running';
+    this.logger.log(`Telegram crawl request received: ${status}`);
+    return {
+      status,
+      running: this.crawlerService.isCrawlRunning(),
+      scope: this.crawlerService.getActiveCrawlScope(),
+    };
+  }
+
+  @Get('forums')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async crawlForums() {
+    const started = this.crawlerService.startForumCrawl();
+    const status = started ? 'started' : 'already_running';
+    this.logger.log(`Forums crawl request received: ${status}`);
+    return {
+      status,
+      running: this.crawlerService.isCrawlRunning(),
+      scope: this.crawlerService.getActiveCrawlScope(),
+    };
+  }
+
   @Get('status')
   getStatus() {
     return {

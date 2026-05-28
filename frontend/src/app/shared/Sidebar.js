@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import { Link, withRouter } from 'react-router-dom';
 import { Collapse, Dropdown } from 'react-bootstrap';
 import { Trans } from 'react-i18next';
+import { getStoredUser } from '../../auth/storage';
 
 class Sidebar extends Component {
 
@@ -36,9 +37,6 @@ class Sidebar extends Component {
       {path:'/apps', state: 'appsMenuOpen'},
       {path:'/basic-ui', state: 'basicUiMenuOpen'},
       {path:'/form-elements', state: 'formElementsMenuOpen'},
-      {path:'/tables', state: 'tablesMenuOpen'},
-      {path:'/icons', state: 'iconsMenuOpen'},
-      {path:'/charts', state: 'chartsMenuOpen'},
     ];
 
     dropdownPaths.forEach((obj => {
@@ -50,6 +48,14 @@ class Sidebar extends Component {
   }
 
   render () {
+    const currentUser = getStoredUser();
+    const displayName =
+      (currentUser &&
+        (currentUser.username ||
+          currentUser.displayName ||
+          (currentUser.email ? String(currentUser.email).split('@')[0] : ''))) ||
+      'admin';
+
     return (
       <nav className="sidebar sidebar-offcanvas" id="sidebar">
         <div className="sidebar-brand-wrapper d-none d-lg-flex align-items-center justify-content-center fixed-top">
@@ -61,8 +67,7 @@ class Sidebar extends Component {
             <div className="profile-desc">
               <div className="profile-pic">
                 <div className="profile-name">
-                  <h5 className="mb-0 font-weight-normal"><Trans>ALERTA_Admin_1</Trans></h5>
-                  <span><Trans>Контур мониторинга угроз</Trans></span>
+                  <h5 className="mb-0 font-weight-normal">{displayName}</h5>
                 </div>
               </div>
               <Dropdown alignRight>
@@ -151,52 +156,28 @@ class Sidebar extends Component {
             </Collapse>
           </li>
           <li className={ this.isPathActive('/tables') ? 'nav-item menu-items active' : 'nav-item menu-items' }>
-            <div className={ this.state.tablesMenuOpen ? 'nav-link menu-expanded' : 'nav-link' } onClick={ () => this.toggleMenuState('tablesMenuOpen') } data-toggle="collapse">
+            <Link className="nav-link" to="/tables/basic-table">
               <span className="menu-icon">
                 <i className="mdi mdi-table-large"></i>
               </span>
               <span className="menu-title"><Trans>Реестр угроз</Trans></span>
-              <i className="menu-arrow"></i>
-            </div>
-            <Collapse in={ this.state.tablesMenuOpen }>
-              <div>
-                <ul className="nav flex-column sub-menu">
-                  <li className="nav-item"> <Link className={ this.isPathActive('/tables/basic-table') ? 'nav-link active' : 'nav-link' } to="/tables/basic-table"><Trans>Матрица сопоставления</Trans></Link></li>
-                </ul>
-              </div>
-            </Collapse>
+            </Link>
           </li>
           <li className={ this.isPathActive('/charts') ? 'nav-item menu-items active' : 'nav-item menu-items' }>
-            <div className={ this.state.chartsMenuOpen ? 'nav-link menu-expanded' : 'nav-link' } onClick={ () => this.toggleMenuState('chartsMenuOpen') } data-toggle="collapse">
+            <Link className="nav-link" to="/charts/chart-js">
               <span className="menu-icon">
                 <i className="mdi mdi-chart-bar"></i>
               </span>
               <span className="menu-title"><Trans>Метрики риска</Trans></span>
-              <i className="menu-arrow"></i>
-            </div>
-            <Collapse in={ this.state.chartsMenuOpen }>
-              <div>
-                <ul className="nav flex-column sub-menu">
-                  <li className="nav-item"> <Link className={ this.isPathActive('/charts/chart-js') ? 'nav-link active' : 'nav-link' } to="/charts/chart-js"><Trans>Динамика сигналов</Trans></Link></li>
-                </ul>
-              </div>
-            </Collapse>
+            </Link>
           </li>
           <li className={ this.isPathActive('/icons') ? 'nav-item menu-items active' : 'nav-item menu-items' }>
-            <div className={ this.state.iconsMenuOpen ? 'nav-link menu-expanded' : 'nav-link' } onClick={ () => this.toggleMenuState('iconsMenuOpen') } data-toggle="collapse">
+            <Link className="nav-link" to="/icons/mdi">
               <span className="menu-icon">
                 <i className="mdi mdi-contacts"></i>
               </span>
               <span className="menu-title"><Trans>Отчет</Trans></span>
-              <i className="menu-arrow"></i>
-            </div>
-            <Collapse in={ this.state.iconsMenuOpen }>
-              <div>
-                <ul className="nav flex-column sub-menu">
-                  <li className="nav-item"> <Link className={ this.isPathActive('/icons/mdi') ? 'nav-link active' : 'nav-link' } to="/icons/mdi"><Trans>Конструктор отчета</Trans></Link></li>
-                </ul>
-              </div>
-            </Collapse>
+            </Link>
           </li>
           <li className="nav-item nav-category">
             <span className="nav-link"><Trans>Служебная документация</Trans></span>

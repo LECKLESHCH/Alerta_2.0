@@ -5,7 +5,13 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "engines": {
+    "node": "20.20.2"
+  },
   "scripts": {
+    "prestart": "node ../scripts/ensure-node-version.js",
+    "prestart:dev": "node ../scripts/ensure-node-version.js",
+    "prebuild": "node ../scripts/ensure-node-version.js",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
@@ -33,6 +39,7 @@
     "axios": "^1.13.4",
     "jsdom": "^28.0.0",
     "langchain": "^1.2.10",
+    "ioredis": "^5.8.2",
     "mongoose": "^9.1.4",
     "openai": "^6.16.0",
     "playwright": "^1.58.2",

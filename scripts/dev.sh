@@ -11,7 +11,7 @@ ensure_run_dir
 
 "$ROOT_DIR/scripts/check-env.sh"
 
-if ! curl -fsS http://127.0.0.1:27017 >/dev/null 2>&1 || ! curl -fsS http://127.0.0.1:6333/collections >/dev/null 2>&1; then
+if ! port_in_use 27017 || ! curl -fsS http://127.0.0.1:6333/collections >/dev/null 2>&1; then
   echo "Infrastructure is not ready. Starting Docker services..."
   "$ROOT_DIR/scripts/infra-up.sh"
 fi
@@ -25,6 +25,22 @@ BACKEND_LOG="$RUN_DIR/backend.log"
 FRONTEND_LOG="$RUN_DIR/frontend.log"
 BACKEND_PID_FILE="$RUN_DIR/backend.pid"
 FRONTEND_PID_FILE="$RUN_DIR/frontend.pid"
+BACKEND_PID=""
+FRONTEND_PID=""
+
+cleanup_on_error() {
+  if [[ -n "$FRONTEND_PID" ]] && kill -0 "$FRONTEND_PID" >/dev/null 2>&1; then
+    kill "$FRONTEND_PID" >/dev/null 2>&1 || true
+  fi
+
+  if [[ -n "$BACKEND_PID" ]] && kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
+    kill "$BACKEND_PID" >/dev/null 2>&1 || true
+  fi
+
+  rm -f "$BACKEND_PID_FILE" "$FRONTEND_PID_FILE"
+}
+
+trap cleanup_on_error ERR
 
 echo "Starting backend in background..."
 nohup env \
@@ -38,6 +54,11 @@ nohup env \
   ' >"$BACKEND_LOG" 2>&1 </dev/null &
 BACKEND_PID=$!
 echo "$BACKEND_PID" >"$BACKEND_PID_FILE"
+
+if ! kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
+  echo "Backend process exited immediately. See $BACKEND_LOG"
+  exit 1
+fi
 
 if ! wait_for_http "http://127.0.0.1:3000/" 30 1; then
   echo "Backend did not become ready. See $BACKEND_LOG"
@@ -57,10 +78,17 @@ nohup env \
 FRONTEND_PID=$!
 echo "$FRONTEND_PID" >"$FRONTEND_PID_FILE"
 
-if ! wait_for_http "http://127.0.0.1:3001" 90 1; then
+if ! kill -0 "$FRONTEND_PID" >/dev/null 2>&1; then
+  echo "Frontend process exited immediately. See $FRONTEND_LOG"
+  exit 1
+fi
+
+if ! wait_for_http "http://127.0.0.1:3001" 180 1; then
   echo "Frontend did not become ready. See $FRONTEND_LOG"
   exit 1
 fi
+
+trap - ERR
 
 echo "Backend:  http://127.0.0.1:3000"
 echo "Frontend: http://127.0.0.1:3001"

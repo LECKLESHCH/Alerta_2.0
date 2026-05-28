@@ -22,10 +22,19 @@ async function request(url, options = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error && error.message
+        ? error.message
+        : 'Network request failed';
+    throw new Error(`Network error for ${url}: ${message}`);
+  }
 
   const payload = await readJsonResponse(response);
 

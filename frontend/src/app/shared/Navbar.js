@@ -5,7 +5,7 @@ import { Trans } from 'react-i18next';
 import { clearAuthSession, getStoredUser } from '../../auth/storage';
 import { fetchCrawlLogs, fetchCrawlStatus, startCrawl } from '../../api/crawler';
 
-const REAL_CRAWL_SCOPES = new Set(['all', 'sites']);
+const REAL_CRAWL_SCOPES = new Set(['all', 'sites', 'telegram', 'forums']);
 
 const CRAWL_SCOPE_LABELS = {
   all: 'По всем источникам',
@@ -280,7 +280,11 @@ class Navbar extends Component {
   render() {
     const currentUser = getStoredUser();
     const displayName =
-      (currentUser && currentUser.displayName) || 'ALERTA_Admin_1';
+      (currentUser &&
+        (currentUser.username ||
+          currentUser.displayName ||
+          (currentUser.email ? String(currentUser.email).split('@')[0] : ''))) ||
+      'admin';
     const {
       crawlRunning,
       crawlScope,
@@ -317,17 +321,7 @@ class Navbar extends Component {
             >
               <span className="mdi mdi-menu"></span>
             </button>
-            <ul className="navbar-nav w-100">
-              <li className="nav-item w-100">
-                <form className="nav-link mt-2 mt-md-0 d-none d-lg-flex search">
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Поиск по инцидентам, объектам и TTP"
-                  />
-                </form>
-              </li>
-            </ul>
+            <ul className="navbar-nav w-100"></ul>
             <ul className="navbar-nav navbar-nav-right">
               {canShowLogsButton && (
                 <li className="nav-item d-none d-lg-flex align-items-center mr-2">
@@ -395,103 +389,6 @@ class Navbar extends Component {
                   <i className="mdi mdi-view-grid"></i>
                 </a>
               </li>
-              <Dropdown alignRight as="li" className="nav-item border-left">
-                <Dropdown.Toggle as="a" className="nav-link count-indicator cursor-pointer">
-                  <i className="mdi mdi-email"></i>
-                  <span className="count bg-success"></span>
-                </Dropdown.Toggle>
-                <Dropdown.Menu className="navbar-dropdown preview-list">
-                  <h6 className="p-3 mb-0"><Trans>Сообщения</Trans></h6>
-                  <Dropdown.Divider />
-                  <Dropdown.Item href="!#" onClick={(evt) => evt.preventDefault()} className="preview-item">
-                    <div className="preview-item-content">
-                      <p className="preview-subject ellipsis mb-1">
-                        <Trans>Новый критичный сигнал по внешнему периметру</Trans>
-                      </p>
-                      <p className="text-muted mb-0">
-                        1 <Trans>минуту назад</Trans>
-                      </p>
-                    </div>
-                  </Dropdown.Item>
-                  <Dropdown.Divider />
-                  <Dropdown.Item href="!#" onClick={(evt) => evt.preventDefault()} className="preview-item">
-                    <div className="preview-item-content">
-                      <p className="preview-subject ellipsis mb-1">
-                        <Trans>Обновлен профиль объекта КИИ</Trans>
-                      </p>
-                      <p className="text-muted mb-0">
-                        7 <Trans>минут назад</Trans>
-                      </p>
-                    </div>
-                  </Dropdown.Item>
-                  <Dropdown.Divider />
-                  <Dropdown.Item href="!#" onClick={(evt) => evt.preventDefault()} className="preview-item">
-                    <div className="preview-item-content">
-                      <p className="preview-subject ellipsis mb-1">
-                        <Trans>Аналитик подтвердил высокий риск</Trans>
-                      </p>
-                      <p className="text-muted mb-0">
-                        18 <Trans>минут назад</Trans>
-                      </p>
-                    </div>
-                  </Dropdown.Item>
-                  <Dropdown.Divider />
-                  <p className="p-3 mb-0 text-center">4 <Trans>новых сообщения</Trans></p>
-                </Dropdown.Menu>
-              </Dropdown>
-              <Dropdown alignRight as="li" className="nav-item border-left">
-                <Dropdown.Toggle as="a" className="nav-link count-indicator cursor-pointer">
-                  <i className="mdi mdi-bell"></i>
-                  <span className="count bg-danger"></span>
-                </Dropdown.Toggle>
-                <Dropdown.Menu className="dropdown-menu navbar-dropdown preview-list">
-                  <h6 className="p-3 mb-0"><Trans>Уведомления</Trans></h6>
-                  <Dropdown.Divider />
-                  <Dropdown.Item className="dropdown-item preview-item" onClick={(evt) => evt.preventDefault()}>
-                    <div className="preview-thumbnail">
-                      <div className="preview-icon bg-dark rounded-circle">
-                        <i className="mdi mdi-calendar text-success"></i>
-                      </div>
-                    </div>
-                    <div className="preview-item-content">
-                      <p className="preview-subject mb-1"><Trans>Сводка дня готова</Trans></p>
-                      <p className="text-muted ellipsis mb-0">
-                        <Trans>Система собрала и классифицировала новые инциденты по регионам</Trans>
-                      </p>
-                    </div>
-                  </Dropdown.Item>
-                  <Dropdown.Divider />
-                  <Dropdown.Item className="dropdown-item preview-item" onClick={(evt) => evt.preventDefault()}>
-                    <div className="preview-thumbnail">
-                      <div className="preview-icon bg-dark rounded-circle">
-                        <i className="mdi mdi-settings text-danger"></i>
-                      </div>
-                    </div>
-                    <div className="preview-item-content">
-                      <h6 className="preview-subject mb-1"><Trans>Профиль объекта обновлен</Trans></h6>
-                      <p className="text-muted ellipsis mb-0">
-                        <Trans>Изменения повлияли на object match и итоговый риск</Trans>
-                      </p>
-                    </div>
-                  </Dropdown.Item>
-                  <Dropdown.Divider />
-                  <Dropdown.Item className="dropdown-item preview-item" onClick={(evt) => evt.preventDefault()}>
-                    <div className="preview-thumbnail">
-                      <div className="preview-icon bg-dark rounded-circle">
-                        <i className="mdi mdi-link-variant text-warning"></i>
-                      </div>
-                    </div>
-                    <div className="preview-item-content">
-                      <h6 className="preview-subject mb-1"><Trans>Новый инцидент на карте</Trans></h6>
-                      <p className="text-muted ellipsis mb-0">
-                        <Trans>Географическая аномалия обнаружена</Trans>
-                      </p>
-                    </div>
-                  </Dropdown.Item>
-                  <Dropdown.Divider />
-                  <p className="p-3 mb-0 text-center"><Trans>Все уведомления</Trans></p>
-                </Dropdown.Menu>
-              </Dropdown>
               <Dropdown alignRight as="li" className="nav-item">
                 <Dropdown.Toggle as="a" className="nav-link cursor-pointer no-caret">
                   <div className="navbar-profile">

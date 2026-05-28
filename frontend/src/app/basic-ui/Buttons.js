@@ -1,9 +1,21 @@
 import React, { Component } from 'react';
-import { fetchArticles } from '../../api/articles';
+import { fetchAllArticles } from '../../api/articles';
 import { buildInterpretationMeta } from '../../utils/interpretation';
 
 const PREVIEW_WORD_LIMIT = 42;
 const DEFAULT_VISIBLE_ROWS = 5;
+const FILTER_DEFAULTS = {
+  selectedSources: [],
+  titleSearch: '',
+  sortOrder: 'newest',
+  onlyWithContent: false,
+  isSourceDropdownOpen: false,
+  isSortDropdownOpen: false,
+};
+
+function getCollectionName(item) {
+  return String(item?.dbCollection || '').trim().toLowerCase();
+}
 function formatPublishedAt(value) {
   if (!value) {
     return 'Нет даты';
@@ -49,16 +61,28 @@ function buildPreview(text) {
   };
 }
 
+function getRowId(item, index = 0) {
+  if (item && item._id) {
+    return String(item._id);
+  }
+
+  const source = String(item?.source || '').trim();
+  const title = String(item?.title || '').trim();
+  const date = String(item?.publishedAt || item?.extracted_at || '').trim();
+  const url = String(item?.url || '').trim();
+  return `${source}|${title}|${date}|${url}|${index}`;
+}
+
 class Buttons extends Component {
   state = {
     newsItems: [],
     isLoadingNews: true,
     newsError: '',
-    selectedSources: [],
-    titleSearch: '',
-    sortOrder: 'newest',
-    onlyWithContent: false,
-    isSourceDropdownOpen: false,
+    filters: {
+      news: { ...FILTER_DEFAULTS },
+      telegram: { ...FILTER_DEFAULTS },
+      forums: { ...FILTER_DEFAULTS },
+    },
     expandedPanels: {
       news: false,
       telegram: false,
@@ -67,6 +91,8 @@ class Buttons extends Component {
     openedArticleId: null,
     fullyExpandedArticleId: null,
   };
+
+  filteredItemsCache = new Map();
 
   componentDidMount() {
     this.loadNews();
@@ -79,9 +105,7 @@ class Buttons extends Component {
     });
 
     try {
-      const { items } = await fetchArticles({
-        page: 1,
-        limit: 100,
+      const { items } = await fetchAllArticles({
         includeText: 1,
       });
 
@@ -124,62 +148,94 @@ class Buttons extends Component {
     }));
   };
 
-  handleTitleSearchChange = (event) => {
-    this.setState({ titleSearch: event.target.value });
-  };
-
-  handleSortOrderChange = (event) => {
-    this.setState({ sortOrder: event.target.value });
-  };
-
-  handleOnlyWithContentChange = (event) => {
-    this.setState({ onlyWithContent: event.target.checked });
-  };
-
-  resetNewsFilters = () => {
-    this.setState({
-      selectedSources: [],
-      titleSearch: '',
-      sortOrder: 'newest',
-      onlyWithContent: false,
-      isSourceDropdownOpen: false,
-    });
-  };
-
-  toggleSourceDropdown = () => {
-    this.setState((prevState) => ({
-      isSourceDropdownOpen: !prevState.isSourceDropdownOpen,
-    }));
-  };
-
-  toggleSourceOption = (source) => {
+  updateFilters = (panelKey, updater) => {
     this.setState((prevState) => {
-      const isSelected = prevState.selectedSources.includes(source);
+      const current = prevState.filters[panelKey] || FILTER_DEFAULTS;
+      const nextPanelState =
+        typeof updater === 'function' ? updater(current) : updater;
 
       return {
-        selectedSources: isSelected
-          ? prevState.selectedSources.filter((item) => item !== source)
-          : [...prevState.selectedSources, source],
+        filters: {
+          ...prevState.filters,
+          [panelKey]: {
+            ...current,
+            ...nextPanelState,
+          },
+        },
       };
     });
   };
 
-  getFilteredNewsItems() {
-    const {
-      newsItems,
+  handleTitleSearchChange = (panelKey, event) => {
+    const value = event.target.value;
+    this.updateFilters(panelKey, { titleSearch: value });
+  };
+
+  handleOnlyWithContentChange = (panelKey, event) => {
+    this.updateFilters(panelKey, { onlyWithContent: event.target.checked });
+  };
+
+  resetFilters = (panelKey) => {
+    this.updateFilters(panelKey, { ...FILTER_DEFAULTS });
+  };
+
+  toggleSourceDropdown = (panelKey) => {
+    this.updateFilters(panelKey, (prevPanel) => ({
+      isSourceDropdownOpen: !prevPanel.isSourceDropdownOpen,
+      isSortDropdownOpen: false,
+    }));
+  };
+
+  toggleSortDropdown = (panelKey) => {
+    this.updateFilters(panelKey, (prevPanel) => ({
+      isSortDropdownOpen: !prevPanel.isSortDropdownOpen,
+      isSourceDropdownOpen: false,
+    }));
+  };
+
+  selectSortOrder = (panelKey, sortOrder) => {
+    this.updateFilters(panelKey, {
+      sortOrder,
+      isSortDropdownOpen: false,
+    });
+  };
+
+  toggleSourceOption = (panelKey, source) => {
+    this.updateFilters(panelKey, (prevPanel) => {
+      const isSelected = prevPanel.selectedSources.includes(source);
+      return {
+        selectedSources: isSelected
+          ? prevPanel.selectedSources.filter((item) => item !== source)
+          : [...prevPanel.selectedSources, source],
+      };
+    });
+  };
+
+  getFilteredItemsForPanel(panelKey, baseItems) {
+    const filter = this.state.filters[panelKey] || FILTER_DEFAULTS;
+    const selectedSources = filter.selectedSources || [];
+    const titleSearch = filter.titleSearch || '';
+    const sortOrder = filter.sortOrder || 'newest';
+    const onlyWithContent = Boolean(filter.onlyWithContent);
+    const normalizedSearch = titleSearch.trim().toLowerCase();
+    const cacheKey = JSON.stringify({
+      panelKey,
       selectedSources,
-      titleSearch,
+      normalizedSearch,
       sortOrder,
       onlyWithContent,
-    } = this.state;
+      itemCount: baseItems.length,
+    });
 
-    const normalizedSearch = titleSearch.trim().toLowerCase();
+    const cached = this.filteredItemsCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
 
-    const filteredItems = newsItems.filter((item) => {
+    const filteredItems = baseItems.filter((item) => {
       const source = item.source || '';
       const title = item.title || '';
       const text = item.text || '';
-
       const matchesSource =
         selectedSources.length === 0 || selectedSources.includes(source);
       const matchesTitle =
@@ -189,7 +245,7 @@ class Buttons extends Component {
       return matchesSource && matchesTitle && matchesContent;
     });
 
-    return filteredItems.sort((left, right) => {
+    const sorted = filteredItems.sort((left, right) => {
       const leftDate = new Date(left.publishedAt || 0).getTime();
       const rightDate = new Date(right.publishedAt || 0).getTime();
 
@@ -199,9 +255,13 @@ class Buttons extends Component {
 
       return rightDate - leftDate;
     });
+    this.filteredItemsCache.clear();
+    this.filteredItemsCache.set(cacheKey, sorted);
+    return sorted;
   }
 
   renderFilterPanel({
+    panelKey,
     sources = [],
     selectedSourcesLabel = 'Все источники',
     selectedSources = [],
@@ -211,6 +271,9 @@ class Buttons extends Component {
     resultCount = null,
     isInteractive = false,
   }) {
+    const sortOrderLabel =
+      sortOrder === 'oldest' ? 'Сначала старые' : 'Сначала новые';
+
     return (
       <div className="border rounded px-3 px-xl-4 py-3 mb-4">
         <div className="row">
@@ -222,7 +285,11 @@ class Buttons extends Component {
               <button
                 type="button"
                 className="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-between"
-                onClick={isInteractive ? this.toggleSourceDropdown : undefined}
+                onClick={
+                  isInteractive
+                    ? () => this.toggleSourceDropdown(panelKey)
+                    : undefined
+                }
                 disabled={!isInteractive}
               >
                 <span className="text-truncate pr-3">
@@ -230,14 +297,18 @@ class Buttons extends Component {
                 </span>
                 <i
                   className={`mdi ${
-                    isInteractive && this.state.isSourceDropdownOpen
+                    isInteractive &&
+                    (this.state.filters[panelKey] || FILTER_DEFAULTS)
+                      .isSourceDropdownOpen
                       ? 'mdi-chevron-up'
                       : 'mdi-chevron-down'
                   }`}
                 ></i>
               </button>
 
-              {isInteractive && this.state.isSourceDropdownOpen ? (
+              {isInteractive &&
+              (this.state.filters[panelKey] || FILTER_DEFAULTS)
+                .isSourceDropdownOpen ? (
                 <div
                   className="border rounded mt-2 px-3 py-3 bg-dark position-absolute w-100"
                   style={{
@@ -254,7 +325,7 @@ class Buttons extends Component {
                           type="checkbox"
                           className="form-check-input"
                           checked={selectedSources.includes(source)}
-                          onChange={() => this.toggleSourceOption(source)}
+                          onChange={() => this.toggleSourceOption(panelKey, source)}
                         />
                         {source}
                         <i className="input-helper"></i>
@@ -275,7 +346,11 @@ class Buttons extends Component {
               className="form-control"
               placeholder="Поиск по названию публикации"
               value={titleSearch}
-              onChange={isInteractive ? this.handleTitleSearchChange : undefined}
+              onChange={
+                isInteractive
+                  ? (event) => this.handleTitleSearchChange(panelKey, event)
+                  : undefined
+              }
               disabled={!isInteractive}
             />
           </div>
@@ -284,15 +359,56 @@ class Buttons extends Component {
             <label className="mb-2 text-muted small d-block">
               Сортировка по дате
             </label>
-            <select
-              className="form-control"
-              value={sortOrder}
-              onChange={isInteractive ? this.handleSortOrderChange : undefined}
-              disabled={!isInteractive}
-            >
-              <option value="newest">Сначала новые</option>
-              <option value="oldest">Сначала старые</option>
-            </select>
+            <div className="position-relative">
+              <button
+                type="button"
+                className="form-control alerta-filter-control d-flex align-items-center justify-content-between text-left"
+                onClick={
+                  isInteractive ? () => this.toggleSortDropdown(panelKey) : undefined
+                }
+                disabled={!isInteractive}
+              >
+                <span className="text-truncate pr-3 alerta-filter-control__text">
+                  {sortOrderLabel}
+                </span>
+                <i
+                  className={`mdi ${
+                    isInteractive &&
+                    (this.state.filters[panelKey] || FILTER_DEFAULTS).isSortDropdownOpen
+                      ? 'mdi-chevron-up'
+                      : 'mdi-chevron-down'
+                  }`}
+                ></i>
+              </button>
+
+              {isInteractive &&
+              (this.state.filters[panelKey] || FILTER_DEFAULTS).isSortDropdownOpen ? (
+                <div
+                  className="border rounded mt-2 px-2 py-2 position-absolute w-100 alerta-filter-dropdown"
+                  style={{
+                    zIndex: 30,
+                    maxHeight: '240px',
+                    overflowY: 'auto',
+                    boxShadow: '0 14px 30px rgba(0, 0, 0, 0.28)',
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="btn btn-link alerta-filter-menu-item text-left"
+                    onClick={() => this.selectSortOrder(panelKey, 'newest')}
+                  >
+                    Сначала новые
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-link alerta-filter-menu-item text-left"
+                    onClick={() => this.selectSortOrder(panelKey, 'oldest')}
+                  >
+                    Сначала старые
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -303,7 +419,11 @@ class Buttons extends Component {
                 type="checkbox"
                 className="form-check-input"
                 checked={onlyWithContent}
-                onChange={isInteractive ? this.handleOnlyWithContentChange : undefined}
+                onChange={
+                  isInteractive
+                    ? (event) => this.handleOnlyWithContentChange(panelKey, event)
+                    : undefined
+                }
                 disabled={!isInteractive}
               />
               Показывать только записи с содержимым
@@ -320,7 +440,7 @@ class Buttons extends Component {
             <button
               type="button"
               className="btn btn-outline-light btn-sm"
-              onClick={isInteractive ? this.resetNewsFilters : undefined}
+              onClick={isInteractive ? () => this.resetFilters(panelKey) : undefined}
               disabled={!isInteractive}
             >
               Сбросить фильтры
@@ -345,13 +465,11 @@ class Buttons extends Component {
     const visibleItems = isExpanded
       ? items
       : items.slice(0, DEFAULT_VISIBLE_ROWS);
-    const scrollContainerStyle = isExpanded
-      ? {
-          height: '72vh',
-          overflowY: 'auto',
-          paddingRight: '0.25rem',
-        }
-      : null;
+    const scrollContainerStyle = {
+      maxHeight: isExpanded ? '72vh' : '40vh',
+      overflowY: 'auto',
+      paddingRight: '0.25rem',
+    };
 
     return (
       <div className="col-12 grid-margin stretch-card" key={panelKey}>
@@ -381,47 +499,34 @@ class Buttons extends Component {
 
             {!isLoading && !error && visibleItems.length > 0 ? (
               <div style={scrollContainerStyle}>
-                <div className="table-responsive">
-                  <table className="table text-white">
+                <div className="table-responsive alerta-db-table-wrap">
+                  <table className="table text-white alerta-db-table">
                     <thead>
                       <tr>
                         <th>Источник</th>
                         <th>Заголовок</th>
-                        <th>Интерпретация</th>
-                        <th>Дата публикации</th>
-                        <th>Ссылка</th>
+                        <th className="text-left">Дата публикации</th>
+                        <th className="text-left">Ссылка</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {visibleItems.map((item) => {
-                        const isOpened = this.state.openedArticleId === item._id;
-                        const interpretation = buildInterpretationMeta(item);
+                      {visibleItems.map((item, index) => {
+                        const rowId = `${panelKey}::${getRowId(item, index)}`;
+                        const isOpened = this.state.openedArticleId === rowId;
 
                         return (
-                          <React.Fragment key={item._id}>
+                          <React.Fragment key={rowId}>
                             <tr
-                              onClick={() => this.toggleArticle(item._id)}
-                              className="text-white"
+                              onClick={() => this.toggleArticle(rowId)}
+                              className="text-white alerta-db-row"
                               style={{ cursor: 'pointer' }}
                             >
                               <td>{item.source || 'Не указан'}</td>
                               <td>{item.title || 'Без заголовка'}</td>
-                              <td>
-                                <div>
-                                  <span className={interpretation.groundingBadgeClass}>
-                                    {interpretation.groundingLabel}
-                                  </span>
-                                </div>
-                                <div className="text-muted small mt-1">
-                                  {interpretation.primaryReference
-                                    ? `${interpretation.primaryReference.reference_id} · ${interpretation.matchCount}`
-                                    : interpretation.isNovel
-                                      ? 'нет эталона'
-                                      : interpretation.groundingPercent}
-                                </div>
+                              <td className="text-left">
+                                {formatPublishedAt(item.publishedAt)}
                               </td>
-                              <td>{formatPublishedAt(item.publishedAt)}</td>
-                              <td>
+                              <td className="text-left">
                                 {item.url ? (
                                   <a
                                     href={item.url}
@@ -436,7 +541,7 @@ class Buttons extends Component {
                                 )}
                               </td>
                             </tr>
-                            {isOpened ? this.renderExpandedArticleRow(item) : null}
+                            {isOpened ? this.renderExpandedArticleRow(item, rowId) : null}
                           </React.Fragment>
                         );
                       })}
@@ -451,15 +556,22 @@ class Buttons extends Component {
     );
   }
 
-  renderExpandedArticleRow(item) {
+  renderExpandedArticleRow(item, rowId) {
     const textState = buildPreview(item.text);
-    const showFullText = this.state.fullyExpandedArticleId === item._id;
+    const showFullText = this.state.fullyExpandedArticleId === rowId;
     const interpretation = buildInterpretationMeta(item);
 
     return (
-      <tr key={`${item._id}-expanded`}>
-        <td colSpan="5" className="border-top-0 pt-0">
-          <div className="border rounded p-4 mt-2 bg-dark">
+      <tr key={`${rowId}-expanded`}>
+        <td colSpan="4" className="border-top-0 pt-0">
+          <div
+            className="border rounded p-4 mt-2"
+            style={{
+              backgroundColor: '#191c24',
+              borderColor: '#2c3553',
+              color: '#ffffff',
+            }}
+          >
             <div className="mb-3">
               <div className="text-muted small mb-2">{item.source || 'Не указан'}</div>
               <h5 className="mb-2">{item.title || 'Без заголовка'}</h5>
@@ -500,7 +612,7 @@ class Buttons extends Component {
                 <button
                   type="button"
                   className="btn btn-link pl-0 pr-3"
-                  onClick={() => this.toggleReadMore(item._id)}
+                  onClick={() => this.toggleReadMore(rowId)}
                 >
                   {showFullText ? 'Скрыть' : 'Читать далее'}
                 </button>
@@ -523,22 +635,62 @@ class Buttons extends Component {
   }
 
   render() {
+    const telegramItemsBase = this.state.newsItems.filter(
+      (item) => getCollectionName(item) === 'articles_tg',
+    );
+    const forumItemsBase = this.state.newsItems.filter(
+      (item) => getCollectionName(item) === 'articles_forum',
+    );
+    const newsSiteItemsBase = this.state.newsItems.filter(
+      (item) => getCollectionName(item) === 'articles',
+    );
+
+    const newsSiteItems = this.getFilteredItemsForPanel('news', newsSiteItemsBase);
+    const telegramItems = this.getFilteredItemsForPanel('telegram', telegramItemsBase);
+    const forumItems = this.getFilteredItemsForPanel('forums', forumItemsBase);
+
     const uniqueSources = Array.from(
       new Set(
-        this.state.newsItems
+        newsSiteItems
           .map((item) => item.source)
           .filter((source) => Boolean(source)),
       ),
     ).sort((left, right) => left.localeCompare(right, 'ru'));
-    const filteredNewsItems = this.getFilteredNewsItems();
+    const newsFilters = this.state.filters.news || FILTER_DEFAULTS;
+    const telegramFilters = this.state.filters.telegram || FILTER_DEFAULTS;
+    const forumFilters = this.state.filters.forums || FILTER_DEFAULTS;
     const selectedSourcesLabel =
-      this.state.selectedSources.length === 0
+      newsFilters.selectedSources.length === 0
         ? 'Все источники'
-        : this.state.selectedSources.length === 1
-          ? this.state.selectedSources[0]
-          : `Выбрано источников: ${this.state.selectedSources.length}`;
-    const telegramItems = [];
-    const forumItems = [];
+        : newsFilters.selectedSources.length === 1
+          ? newsFilters.selectedSources[0]
+          : `Выбрано источников: ${newsFilters.selectedSources.length}`;
+    const telegramSources = Array.from(
+      new Set(
+        telegramItemsBase
+          .map((item) => item.source)
+          .filter((source) => Boolean(source)),
+      ),
+    ).sort((left, right) => left.localeCompare(right, 'ru'));
+    const forumSources = Array.from(
+      new Set(
+        forumItemsBase
+          .map((item) => item.source)
+          .filter((source) => Boolean(source)),
+      ),
+    ).sort((left, right) => left.localeCompare(right, 'ru'));
+    const selectedTelegramSourcesLabel =
+      telegramFilters.selectedSources.length === 0
+        ? 'Все источники'
+        : telegramFilters.selectedSources.length === 1
+          ? telegramFilters.selectedSources[0]
+          : `Выбрано источников: ${telegramFilters.selectedSources.length}`;
+    const selectedForumSourcesLabel =
+      forumFilters.selectedSources.length === 0
+        ? 'Все источники'
+        : forumFilters.selectedSources.length === 1
+          ? forumFilters.selectedSources[0]
+          : `Выбрано источников: ${forumFilters.selectedSources.length}`;
 
     return (
       <div>
@@ -562,20 +714,19 @@ class Buttons extends Component {
           {this.renderArticleDatabaseCard({
             panelKey: 'news',
             title: 'Новостные сайты',
-            description:
-              'Лента публикаций из основной базы новостных источников с быстрым раскрытием содержимого.',
-            items: filteredNewsItems,
+            items: newsSiteItems,
             isLoading: this.state.isLoadingNews,
             error: this.state.newsError,
             placeholder: 'Новостные записи пока не загружены.',
             filters: this.renderFilterPanel({
+              panelKey: 'news',
               sources: uniqueSources,
               selectedSourcesLabel,
-              selectedSources: this.state.selectedSources,
-              titleSearch: this.state.titleSearch,
-              sortOrder: this.state.sortOrder,
-              onlyWithContent: this.state.onlyWithContent,
-              resultCount: filteredNewsItems.length,
+              selectedSources: newsFilters.selectedSources,
+              titleSearch: newsFilters.titleSearch,
+              sortOrder: newsFilters.sortOrder,
+              onlyWithContent: newsFilters.onlyWithContent,
+              resultCount: newsSiteItems.length,
               isInteractive: true,
             }),
           })}
@@ -583,34 +734,42 @@ class Buttons extends Component {
           {this.renderArticleDatabaseCard({
             panelKey: 'telegram',
             title: 'Telegram-каналы',
-            description:
-              'Контур Telegram будет подключён следующим этапом. Окно уже подготовлено под ту же механику просмотра.',
             items: telegramItems,
-            isLoading: false,
-            error: '',
+            isLoading: this.state.isLoadingNews,
+            error: this.state.newsError,
             placeholder:
-              'Telegram-каналы обозначены. После интеграции здесь появятся записи из Telegram-базы.',
+              'Telegram-записи пока не найдены в текущем наборе данных.',
             filters: this.renderFilterPanel({
-              selectedSourcesLabel: 'Источники Telegram',
-              resultCount: null,
-              isInteractive: false,
+              panelKey: 'telegram',
+              sources: telegramSources,
+              selectedSourcesLabel: selectedTelegramSourcesLabel,
+              selectedSources: telegramFilters.selectedSources,
+              titleSearch: telegramFilters.titleSearch,
+              sortOrder: telegramFilters.sortOrder,
+              onlyWithContent: telegramFilters.onlyWithContent,
+              resultCount: telegramItems.length,
+              isInteractive: true,
             }),
           })}
 
           {this.renderArticleDatabaseCard({
             panelKey: 'forums',
             title: 'Форумы',
-            description:
-              'Зона для дальнейшего подключения форумов и теневых площадок в единую витрину содержимого.',
             items: forumItems,
-            isLoading: false,
-            error: '',
+            isLoading: this.state.isLoadingNews,
+            error: this.state.newsError,
             placeholder:
-              'Форумный контур пока обозначен как следующий источник данных.',
+              'Форумные записи пока не найдены в текущем наборе данных.',
             filters: this.renderFilterPanel({
-              selectedSourcesLabel: 'Источники форумов',
-              resultCount: null,
-              isInteractive: false,
+              panelKey: 'forums',
+              sources: forumSources,
+              selectedSourcesLabel: selectedForumSourcesLabel,
+              selectedSources: forumFilters.selectedSources,
+              titleSearch: forumFilters.titleSearch,
+              sortOrder: forumFilters.sortOrder,
+              onlyWithContent: forumFilters.onlyWithContent,
+              resultCount: forumItems.length,
+              isInteractive: true,
             }),
           })}
         </div>

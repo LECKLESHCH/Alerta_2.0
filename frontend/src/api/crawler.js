@@ -2,8 +2,13 @@ import { apiGet } from './client';
 import { API_ENDPOINTS } from './endpoints';
 
 export async function startCrawl(scope) {
-  const endpoint =
-    scope === 'sites' ? API_ENDPOINTS.crawlSites() : API_ENDPOINTS.crawlAll();
+  const endpointMap = {
+    all: API_ENDPOINTS.crawlAll(),
+    sites: API_ENDPOINTS.crawlSites(),
+    telegram: API_ENDPOINTS.crawlTelegram(),
+    forums: API_ENDPOINTS.crawlForums(),
+  };
+  const endpoint = endpointMap[scope] || API_ENDPOINTS.crawlAll();
 
   return apiGet(endpoint);
 }

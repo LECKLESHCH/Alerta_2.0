@@ -14,6 +14,8 @@ export const API_ENDPOINTS = {
   objectById: (objectId) => buildUrl(`/objects/${objectId}`),
   crawlAll: () => buildUrl('/crawl/all'),
   crawlSites: () => buildUrl('/crawl/sites'),
+  crawlTelegram: () => buildUrl('/crawl/telegram'),
+  crawlForums: () => buildUrl('/crawl/forums'),
   crawlStatus: () => buildUrl('/crawl/status'),
   crawlLogs: (limit = 200) => buildUrl(`/crawl/logs?limit=${limit}`),
   crawlArticle: () => buildUrl('/crawl/article'),

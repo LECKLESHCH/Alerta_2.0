@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: help bootstrap check infra-up infra-down dev dev-backend dev-frontend stop clean reset-deps
+.PHONY: help bootstrap check infra-up infra-down dev dev-backend dev-frontend stop clean reset-deps auth-reset
 
 help:
 	@echo "ALERTA 2.0 commands:"
@@ -14,6 +14,7 @@ help:
 	@echo "  make stop         Stop local dev processes on ports 3000 and 3001"
 	@echo "  make clean        Stop dev processes and Docker infrastructure"
 	@echo "  make reset-deps   Reinstall backend and frontend dependencies from scratch"
+	@echo "  make auth-reset   Reset/create admin auth account (backend)"
 
 bootstrap:
 	@./scripts/bootstrap.sh
@@ -44,3 +45,6 @@ clean:
 
 reset-deps:
 	@./scripts/reset-deps.sh
+
+auth-reset:
+	@cd backend && source ~/.nvm/nvm.sh && nvm use "$$(cat ../.nvmrc)" >/dev/null && node -r ts-node/register/transpile-only scripts/reset_auth_admin.ts

@@ -263,9 +263,6 @@ class BasicTable extends Component {
             <h4 className="card-title mb-2">
               Анализ для объекта {selectedObject.objectName}
             </h4>
-            <p className="card-description mb-0">
-              Риски считаются на лету при открытии вкладки и не сохраняются в БД.
-            </p>
           </div>
           <div className="d-flex flex-wrap">
             <div className="mr-4 mb-2">
@@ -298,7 +295,7 @@ class BasicTable extends Component {
               <div>{selectedObject.industry}</div>
             </div>
             <div className="col-md-3">
-              <div className="text-muted small">Критичность бизнеса</div>
+              <div className="text-muted small">Критичность</div>
               <div>{formatScore(selectedObject.businessCriticality)}</div>
             </div>
           </div>
@@ -363,33 +360,33 @@ class BasicTable extends Component {
                     <td>
                       {item.reasons.length ? (
                         item.reasons.map((reason, index) => (
-                          <div key={`${item.threat._id || item.threat.url}-${index}`} className="text-muted small mb-1">
+                          <div key={`${item.threat._id || item.threat.url}-${index}`} className="text-white small mb-1">
                             {reason}
                           </div>
                         ))
                       ) : (
-                        <span className="text-muted small">
+                        <span className="text-white small">
                           Базовый риск сформирован по severity, экспозиции и зрелости защиты.
                         </span>
                       )}
-                      <div className="text-muted small mt-2">
+                      <div className="text-white small mt-2">
                         {item.threat.interpretation_summary || 'Эталонная опора пока не сформирована.'}
                       </div>
-                      <div className="text-muted small mt-1">
+                      <div className="text-white small mt-1">
                         Совпадений найдено: {interpretation.matchCount}
                       </div>
                     </td>
                     <td>
-                      <div className="text-muted small">
+                      <div className="text-white small">
                         threat {formatRiskPercent(item.threatIntensity)}
                       </div>
-                      <div className="text-muted small">
+                      <div className="text-white small">
                         relevance {formatRiskPercent(item.relevanceScore)}
                       </div>
-                      <div className="text-muted small">
+                      <div className="text-white small">
                         exposure {formatRiskPercent(item.exposureScore)}
                       </div>
-                      <div className="text-muted small">
+                      <div className="text-white small">
                         weakness {formatRiskPercent(item.weaknessScore)}
                       </div>
                     </td>
@@ -431,35 +428,53 @@ class BasicTable extends Component {
           <div className="col-md-4 grid-margin stretch-card">
             <div className="card">
               <div className="card-body">
-                <h6 className="text-muted mb-2">Профили угроз</h6>
-                <h3 className="mb-0">{threatItems.length}</h3>
-                <p className="text-muted mb-0">
-                  Текущие threat-записи из базы после сбора и нормализации.
-                </p>
+                <div className="row">
+                  <div className="col-9">
+                    <h6 className="mb-2 text-white h5">Профили угроз</h6>
+                    <h3 className="mb-0">{threatItems.length}</h3>
+                  </div>
+                  <div className="col-3">
+                    <div className="icon icon-box-danger">
+                      <span className="mdi mdi-shield-alert icon-item"></span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
           <div className="col-md-4 grid-margin stretch-card">
             <div className="card">
               <div className="card-body">
-                <h6 className="text-muted mb-2">Модели объектов</h6>
-                <h3 className="mb-0">{objectItems.length}</h3>
-                <p className="text-muted mb-0">
-                  Доступные паспорта КИИ для расчёта сопоставления.
-                </p>
+                <div className="row">
+                  <div className="col-9">
+                    <h6 className="mb-2 text-white h5">Модели объектов</h6>
+                    <h3 className="mb-0">{objectItems.length}</h3>
+                  </div>
+                  <div className="col-3">
+                    <div className="icon icon-box-info">
+                      <span className="mdi mdi-domain icon-item"></span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
           <div className="col-md-4 grid-margin stretch-card">
             <div className="card">
               <div className="card-body">
-                <h6 className="text-muted mb-2">Высокий риск для выбранного объекта</h6>
-                <h3 className="mb-0">
-                  {selectedObject ? summarizeObjectRisk(matches).highCount : 0}
-                </h3>
-                <p className="text-muted mb-0">
-                  На лету по формуле severity + fit + экспозиция + критичность.
-                </p>
+                <div className="row">
+                  <div className="col-9">
+                    <h6 className="mb-2 text-white h5">Высокий риск для выбранного объекта</h6>
+                    <h3 className="mb-0">
+                      {selectedObject ? summarizeObjectRisk(matches).highCount : 0}
+                    </h3>
+                  </div>
+                  <div className="col-3">
+                    <div className="icon icon-box-warning">
+                      <span className="mdi mdi-alert-circle icon-item"></span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -483,9 +498,6 @@ class BasicTable extends Component {
               <div className="card">
                 <div className="card-body">
                   <h4 className="card-title">Текущие профили угроз</h4>
-                  <p className="card-description">
-                    Поток статей, уже преобразованных в структурированные угрозы.
-                  </p>
                   {this.renderThreatProfiles(threatItems)}
                 </div>
               </div>
@@ -494,10 +506,7 @@ class BasicTable extends Component {
             <div className="col-lg-6 grid-margin stretch-card">
               <div className="card">
                 <div className="card-body">
-                  <h4 className="card-title">Совпадение угроз с объектами</h4>
-                  <p className="card-description">
-                    Выбери модель объекта, чтобы ниже увидеть релевантные угрозы и уровень риска.
-                  </p>
+                  <h4 className="card-title">Текущие профили объектов</h4>
                   {this.renderObjectList(objectItems, selectedObjectId, threatItems)}
                 </div>
               </div>

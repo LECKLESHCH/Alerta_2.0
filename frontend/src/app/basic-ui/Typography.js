@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { fetchArticles } from '../../api/articles';
+import { fetchAllArticles } from '../../api/articles';
 
 const DEFAULT_VISIBLE_ROWS = 5;
 
@@ -25,6 +25,40 @@ const FILTER_LABEL_STYLE = {
 const FILTER_META_STYLE = {
   color: '#aab4d0',
 };
+
+function getRowId(item, index = 0) {
+  if (item && item._id) {
+    return String(item._id);
+  }
+  const source = String(item?.source || '').trim();
+  const title = String(item?.title || '').trim();
+  const date = String(item?.publishedAt || item?.extracted_at || '').trim();
+  const url = String(item?.url || '').trim();
+  return `${source}|${title}|${date}|${url}|${index}`;
+}
+
+function normalizeSource(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function isTelegramSource(source) {
+  const value = normalizeSource(source);
+  return value.includes('telegram') || value.includes('tg');
+}
+
+function isForumSource(source) {
+  const value = normalizeSource(source);
+  return (
+    value.includes('forum') ||
+    value.includes('форум') ||
+    value.includes('xss') ||
+    value.includes('exploit')
+  );
+}
+
+function getCollectionName(item) {
+  return String(item?.dbCollection || '').trim().toLowerCase();
+}
 
 function formatPublishedAt(value) {
   if (!value) {
@@ -102,15 +136,11 @@ class Typography extends Component {
     });
 
     try {
-      const { items } = await fetchArticles({
-        page: 1,
-        limit: 150,
+      const { items } = await fetchAllArticles({
         includeText: 1,
       });
 
-      const newsItems = Array.isArray(items)
-        ? items.filter((item) => item.type === 'news')
-        : [];
+      const newsItems = Array.isArray(items) ? items : [];
 
       this.setState({
         newsItems,
@@ -217,6 +247,13 @@ class Typography extends Component {
       const source = String(item.source || '').trim();
       const title = String(item.title || '').trim().toLowerCase();
       const text = String(item.text || '').trim();
+      const collection = getCollectionName(item);
+      const isTelegram = collection === 'articles_tg' || isTelegramSource(source);
+      const isForum = collection === 'articles_forum' || isForumSource(source);
+
+      if (item.type !== 'news' || isTelegram || isForum) {
+        return false;
+      }
 
       const matchesSource =
         selectedSources.length === 0 || selectedSources.includes(source);
@@ -419,12 +456,12 @@ class Typography extends Component {
     );
   }
 
-  renderExpandedArticleRow(item) {
+  renderExpandedArticleRow(item, rowId) {
     const textState = buildPreview(item.text);
-    const showFullText = this.state.fullyExpandedArticleId === item._id;
+    const showFullText = this.state.fullyExpandedArticleId === rowId;
 
     return (
-      <tr key={`${item._id}-expanded`}>
+      <tr key={`${rowId}-expanded`}>
         <td colSpan="4" className="border-top-0 pt-0">
           <div
             className="border rounded p-4 mt-2"
@@ -460,7 +497,7 @@ class Typography extends Component {
                 <button
                   type="button"
                   className="btn btn-link pl-0 pr-3"
-                  onClick={() => this.toggleReadMore(item._id)}
+                  onClick={() => this.toggleReadMore(rowId)}
                 >
                   {showFullText ? 'Скрыть' : 'Читать далее'}
                 </button>
@@ -485,7 +522,6 @@ class Typography extends Component {
   renderNewsDatabaseCard({
     panelKey,
     title,
-    description,
     items,
     isLoading,
     error,
@@ -494,13 +530,11 @@ class Typography extends Component {
   }) {
     const isExpanded = this.state.expandedPanels[panelKey];
     const visibleItems = isExpanded ? items : items.slice(0, DEFAULT_VISIBLE_ROWS);
-    const scrollContainerStyle = isExpanded
-      ? {
-          height: '72vh',
-          overflowY: 'auto',
-          paddingRight: '0.25rem',
-        }
-      : null;
+    const scrollContainerStyle = {
+      maxHeight: isExpanded ? '72vh' : '40vh',
+      overflowY: 'auto',
+      paddingRight: '0.25rem',
+    };
 
     return (
       <div className="col-12 grid-margin stretch-card" key={panelKey}>
@@ -509,7 +543,6 @@ class Typography extends Component {
             <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between mb-3">
               <div className="mb-3 mb-lg-0">
                 <h4 className="card-title mb-2">{title}</h4>
-                <p className="card-description mb-0">{description}</p>
               </div>
               <button
                 type="button"
@@ -530,8 +563,8 @@ class Typography extends Component {
 
             {!isLoading && !error && visibleItems.length > 0 ? (
               <div style={scrollContainerStyle}>
-                <div className="table-responsive">
-                  <table className="table">
+                <div className="table-responsive alerta-db-table-wrap">
+                  <table className="table alerta-db-table">
                     <thead>
                       <tr>
                         <th style={TABLE_TEXT_STYLE}>Источник</th>
@@ -541,14 +574,16 @@ class Typography extends Component {
                       </tr>
                     </thead>
                     <tbody>
-                      {visibleItems.map((item) => {
-                        const isOpened = this.state.openedArticleId === item._id;
+                      {visibleItems.map((item, index) => {
+                        const rowId = `${panelKey}::${getRowId(item, index)}`;
+                        const isOpened = this.state.openedArticleId === rowId;
 
                         return (
-                          <React.Fragment key={item._id}>
+                          <React.Fragment key={rowId}>
                             <tr
-                              onClick={() => this.toggleArticle(item._id)}
+                              onClick={() => this.toggleArticle(rowId)}
                               style={{ cursor: 'pointer' }}
+                              className="alerta-db-row"
                             >
                               <td style={TABLE_TEXT_STYLE}>{item.source || 'Не указан'}</td>
                               <td style={TABLE_TEXT_STYLE}>{item.title || 'Без заголовка'}</td>
@@ -568,7 +603,7 @@ class Typography extends Component {
                                 )}
                               </td>
                             </tr>
-                            {isOpened ? this.renderExpandedArticleRow(item) : null}
+                            {isOpened ? this.renderExpandedArticleRow(item, rowId) : null}
                           </React.Fragment>
                         );
                       })}
@@ -584,10 +619,20 @@ class Typography extends Component {
   }
 
   render() {
+    const telegramNewsItems = this.state.newsItems.filter(
+      (item) => item.type === 'news' && getCollectionName(item) === 'articles_tg',
+    );
+    const forumNewsItems = this.state.newsItems.filter(
+      (item) => item.type === 'news' && getCollectionName(item) === 'articles_forum',
+    );
+    const siteNewsItems = this.state.newsItems.filter((item) => {
+      return item.type === 'news' && getCollectionName(item) === 'articles';
+    });
+
     const filteredNewsItems = this.getFilteredNewsItems();
     const sourceOptions = Array.from(
       new Set(
-        this.state.newsItems
+        siteNewsItems
           .map((item) => String(item.source || '').trim())
           .filter(Boolean),
       ),
@@ -621,9 +666,7 @@ class Typography extends Component {
         <div className="row">
           {this.renderNewsDatabaseCard({
             panelKey: 'newsArticles',
-            title: 'Новостные статьи',
-            description:
-              'Поток публикаций, которые классифицированы как новости, без признаков подтверждённой угрозы.',
+            title: 'Новостные сайты',
             items: filteredNewsItems,
             isLoading: this.state.isLoadingNews,
             error: this.state.newsError,
@@ -641,34 +684,30 @@ class Typography extends Component {
 
           {this.renderNewsDatabaseCard({
             panelKey: 'telegramArticles',
-            title: 'Новостные статьи',
-            description:
-              'Контур новостных Telegram-публикаций будет подключён следующим этапом в том же формате.',
-            items: [],
-            isLoading: false,
-            error: '',
+            title: 'Telegram-каналы',
+            items: telegramNewsItems,
+            isLoading: this.state.isLoadingNews,
+            error: this.state.newsError,
             placeholder:
-              'Telegram-новости пока обозначены как следующий контур интеграции.',
+              'Telegram-новости пока не найдены в текущем наборе данных.',
             filters: this.renderNewsFilterPanel({
               selectedSourcesLabel: 'Источники Telegram',
-              resultCount: null,
+              resultCount: telegramNewsItems.length,
               isInteractive: false,
             }),
           })}
 
           {this.renderNewsDatabaseCard({
             panelKey: 'forumArticles',
-            title: 'Новостные статьи',
-            description:
-              'Зона для подключения форумных и отраслевых новостных публикаций в ту же витрину.',
-            items: [],
-            isLoading: false,
-            error: '',
+            title: 'Форумы',
+            items: forumNewsItems,
+            isLoading: this.state.isLoadingNews,
+            error: this.state.newsError,
             placeholder:
-              'Форумный новостной контур пока обозначен как следующий источник данных.',
+              'Форумные новости пока не найдены в текущем наборе данных.',
             filters: this.renderNewsFilterPanel({
               selectedSourcesLabel: 'Источники форумов',
-              resultCount: null,
+              resultCount: forumNewsItems.length,
               isInteractive: false,
             }),
           })}

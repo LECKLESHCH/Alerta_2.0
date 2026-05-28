@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { fetchArticles } from '../../api/articles';
+import { fetchAllArticles } from '../../api/articles';
 import {
   getThreatCategoryLabel,
   getThreatSubcategoryLabel,
@@ -61,6 +61,25 @@ function normalizeText(value) {
   return String(value || '').trim();
 }
 
+function isTelegramSource(source) {
+  const value = normalizeText(source).toLowerCase();
+  return value.includes('telegram') || value.includes('tg');
+}
+
+function isForumSource(source) {
+  const value = normalizeText(source).toLowerCase();
+  return (
+    value.includes('forum') ||
+    value.includes('форум') ||
+    value.includes('xss') ||
+    value.includes('exploit')
+  );
+}
+
+function getCollectionName(item) {
+  return normalizeText(item?.dbCollection).toLowerCase();
+}
+
 function buildPreview(text) {
   const normalized = normalizeText(text);
   if (!normalized) {
@@ -103,7 +122,7 @@ function getSeverityBadgeClass(severity) {
 
 class Dropdowns extends Component {
   state = {
-    threatItems: [],
+    allItems: [],
     isLoadingThreats: true,
     threatsError: '',
     selectedSources: [],
@@ -134,18 +153,14 @@ class Dropdowns extends Component {
     });
 
     try {
-      const { items } = await fetchArticles({
-        page: 1,
-        limit: 150,
+      const { items } = await fetchAllArticles({
         includeText: 1,
       });
 
-      const threatItems = Array.isArray(items)
-        ? items.filter((item) => item.type === 'threat')
-        : [];
+      const allItems = Array.isArray(items) ? items : [];
 
       this.setState({
-        threatItems,
+        allItems,
         isLoadingThreats: false,
       });
     } catch (error) {
@@ -260,18 +275,30 @@ class Dropdowns extends Component {
 
   getFilteredThreatItems() {
     const {
-      threatItems,
+      allItems,
       selectedSources,
       selectedCategories,
       titleSearch,
       sortOrder,
       onlyWithContent,
     } = this.state;
+    const threatItems = allItems.filter((item) => item.type === 'threat');
 
     const normalizedSearch = titleSearch.trim().toLowerCase();
 
     const filteredItems = threatItems.filter((item) => {
       const source = normalizeText(item.source);
+      const collection = getCollectionName(item);
+      const isTelegram = collection === 'articles_tg' || isTelegramSource(source);
+      const isForum =
+        collection === 'articles_forum' || isForumSource(source);
+
+      if (item.type !== 'threat') {
+        return false;
+      }
+      if (isTelegram || isForum) {
+        return false;
+      }
       const title = normalizeText(item.title).toLowerCase();
       const category = normalizeText(item.category);
       const text = normalizeText(item.text);
@@ -639,7 +666,6 @@ class Dropdowns extends Component {
   renderThreatDatabaseCard({
     panelKey,
     title,
-    description,
     items,
     isLoading,
     error,
@@ -663,7 +689,6 @@ class Dropdowns extends Component {
             <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between mb-3">
               <div className="mb-3 mb-lg-0">
                 <h4 className="card-title mb-2">{title}</h4>
-                <p className="card-description mb-0">{description}</p>
               </div>
               <button
                 type="button"
@@ -684,8 +709,8 @@ class Dropdowns extends Component {
 
             {!isLoading && !error && visibleItems.length > 0 ? (
               <div style={scrollContainerStyle}>
-                <div className="table-responsive">
-                  <table className="table">
+                <div className="table-responsive alerta-db-table-wrap">
+                  <table className="table alerta-threat-table">
                     <thead>
                       <tr>
                         <th style={TABLE_TEXT_STYLE}>Источник</th>
@@ -707,6 +732,7 @@ class Dropdowns extends Component {
                             <tr
                               onClick={() => this.toggleThreat(item._id)}
                               style={{ cursor: 'pointer' }}
+                              className="alerta-db-row"
                             >
                               <td style={TABLE_TEXT_STYLE}>{item.source || 'Не указан'}</td>
                               <td style={TABLE_TEXT_STYLE}>{item.title || 'Без заголовка'}</td>
@@ -762,10 +788,24 @@ class Dropdowns extends Component {
   }
 
   render() {
+    const threatItems = this.state.allItems.filter((item) => item.type === 'threat');
     const filteredThreatItems = this.getFilteredThreatItems();
+    const telegramThreatItems = this.state.allItems.filter((item) => {
+      const collection = getCollectionName(item);
+      return item.type === 'threat' && collection === 'articles_tg';
+    });
+    const forumThreatItems = this.state.allItems.filter((item) => {
+      const collection = getCollectionName(item);
+      return item.type === 'threat' && collection === 'articles_forum';
+    });
+    const siteThreatItems = threatItems.filter((item) => {
+      const collection = getCollectionName(item);
+      return collection === 'articles';
+    });
+
     const sourceOptions = Array.from(
       new Set(
-        this.state.threatItems
+        siteThreatItems
           .map((item) => normalizeText(item.source))
           .filter(Boolean),
       ),
@@ -773,7 +813,7 @@ class Dropdowns extends Component {
 
     const categoryOptions = Array.from(
       new Set(
-        this.state.threatItems
+        siteThreatItems
           .map((item) => normalizeText(item.category))
           .filter(Boolean),
       ),
@@ -814,9 +854,7 @@ class Dropdowns extends Component {
         <div className="row">
           {this.renderThreatDatabaseCard({
             panelKey: 'newsThreats',
-            title: 'Выявленные угрозы',
-            description:
-              'Структурированная лента угроз, выделенных из новостных источников с раскрытием содержания и быстрым просмотром.',
+            title: 'Новостные сайты',
             items: filteredThreatItems,
             isLoading: this.state.isLoadingThreats,
             error: this.state.threatsError,
@@ -836,36 +874,32 @@ class Dropdowns extends Component {
 
           {this.renderThreatDatabaseCard({
             panelKey: 'telegramThreats',
-            title: 'Выявленные угрозы',
-            description:
-              'Контур выявленных угроз из Telegram-каналов будет подключён следующим этапом в том же формате.',
-            items: [],
-            isLoading: false,
-            error: '',
+            title: 'Телеграм каналы',
+            items: telegramThreatItems,
+            isLoading: this.state.isLoadingThreats,
+            error: this.state.threatsError,
             placeholder:
-              'Telegram-контур угроз пока обозначен. После интеграции здесь появятся классифицированные записи.',
+              'Telegram-записи пока не найдены в текущем наборе данных.',
             filters: this.renderThreatFilterPanel({
               selectedSourcesLabel: 'Источники Telegram',
               selectedCategoriesLabel: 'Категории Telegram',
-              resultCount: null,
+              resultCount: telegramThreatItems.length,
               isInteractive: false,
             }),
           })}
 
           {this.renderThreatDatabaseCard({
             panelKey: 'forumThreats',
-            title: 'Выявленные угрозы',
-            description:
-              'Зона для дальнейшего подключения форумных и теневых источников с той же механикой фильтрации.',
-            items: [],
-            isLoading: false,
-            error: '',
+            title: 'Форумы',
+            items: forumThreatItems,
+            isLoading: this.state.isLoadingThreats,
+            error: this.state.threatsError,
             placeholder:
-              'Форумный контур угроз пока обозначен как следующий этап интеграции.',
+              'Форумные записи пока не найдены в текущем наборе данных.',
             filters: this.renderThreatFilterPanel({
               selectedSourcesLabel: 'Источники форумов',
               selectedCategoriesLabel: 'Категории форумов',
-              resultCount: null,
+              resultCount: forumThreatItems.length,
               isInteractive: false,
             }),
           })}

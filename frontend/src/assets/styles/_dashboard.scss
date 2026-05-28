@@ -1,11 +1,112 @@
 /* Dashboard */
 .dashboard-vector-map {
     width: 100%;
-    height: 300px;
+    height: 340px;
     border: 1px solid rgba(108, 114, 147, 0.18);
     border-radius: 8px;
     overflow: hidden;
     background: #11141b;
+}
+
+.alerta-kpi-description {
+  min-height: 96px;
+}
+
+.alerta-db-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.alerta-db-table-wrap {
+  scrollbar-gutter: stable;
+}
+
+.alerta-db-table th,
+.alerta-db-table td {
+  vertical-align: top;
+}
+
+.alerta-db-table th {
+  padding-top: 0.9rem;
+  padding-bottom: 0.9rem;
+}
+
+.alerta-db-row td {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.alerta-db-table th:nth-child(1),
+.alerta-db-table td:nth-child(1) {
+  width: 20%;
+}
+
+.alerta-db-table th:nth-child(2),
+.alerta-db-table td:nth-child(2) {
+  width: 50%;
+}
+
+.alerta-db-table th:nth-child(4),
+.alerta-db-table td:nth-child(4) {
+  width: 14%;
+}
+
+.alerta-db-table th:nth-child(3),
+.alerta-db-table td:nth-child(3) {
+  width: 16%;
+}
+
+.alerta-db-table th:nth-child(3),
+.alerta-db-table td:nth-child(3),
+.alerta-db-table th:nth-child(4),
+.alerta-db-table td:nth-child(4) {
+  text-align: left;
+}
+
+.alerta-threat-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.alerta-threat-table th,
+.alerta-threat-table td {
+  vertical-align: top;
+}
+
+.alerta-threat-table th:nth-child(1),
+.alerta-threat-table td:nth-child(1) {
+  width: 14%;
+}
+
+.alerta-threat-table th:nth-child(2),
+.alerta-threat-table td:nth-child(2) {
+  width: 23%;
+}
+
+.alerta-threat-table th:nth-child(3),
+.alerta-threat-table td:nth-child(3) {
+  width: 14%;
+}
+
+.alerta-threat-table th:nth-child(4),
+.alerta-threat-table td:nth-child(4) {
+  width: 14%;
+}
+
+.alerta-threat-table th:nth-child(5),
+.alerta-threat-table td:nth-child(5) {
+  width: 17%;
+}
+
+.alerta-threat-table th:nth-child(6),
+.alerta-threat-table td:nth-child(6) {
+  width: 9%;
+}
+
+.alerta-threat-table th:nth-child(7),
+.alerta-threat-table td:nth-child(7) {
+  width: 9%;
+  text-align: left;
 }
 
 .alerta-dashboard-table {
@@ -145,6 +246,10 @@ button.alerta-filter-control {
 
 .alerta-filter-control__text {
   color: #ffffff;
+}
+
+.alerta-object-select {
+  border-radius: 0 !important;
 }
 
 .alerta-filter-dropdown {
