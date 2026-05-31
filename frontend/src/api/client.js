@@ -75,3 +75,10 @@ export async function apiPost(url, payload = {}) {
 export async function apiDelete(url) {
   return request(url, { method: 'DELETE' });
 }
+
+export async function apiPatch(url, payload = {}) {
+  return request(url, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}

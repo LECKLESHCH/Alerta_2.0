@@ -100,9 +100,12 @@ class TelegramClientContext(ContextManager[TelegramClient]):
         session_name: str = None  # private var
         proxy: dict = None  # private var
 
-        # Display machine's public IP address (https://stackoverflow.com/a/36205547)
-        public_ip: str = get("https://api.ipify.org").content.decode("utf8")
-        logging.info(f"Collection public IP address '{public_ip}'")
+        # Display machine's public IP address (best-effort only; do not fail collection)
+        try:
+            public_ip: str = get("https://api.ipify.org", timeout=8).content.decode("utf8")
+            logging.info(f"Collection public IP address '{public_ip}'")
+        except Exception as exc:
+            logging.warning(f"Could not fetch public IP, continuing without it: {exc}")
 
         # Detect proxy in config file
         if PROXIES is not None and len(PROXIES) > 0:  # There exists at least one proxy
@@ -113,7 +116,7 @@ class TelegramClientContext(ContextManager[TelegramClient]):
                 f"Setting {proxy['proxy_type']} proxy at '{proxy['addr']}:{proxy['port']}'"
             )
         else:  # No proxies are configured
-            session_name = "anon"
+            session_name = "anon_runtime"
             logging.info(f"No proxy detected in configurations...")
 
         # Create and return a TelegramClient instance

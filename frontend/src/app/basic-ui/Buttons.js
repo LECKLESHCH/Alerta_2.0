@@ -636,13 +636,13 @@ class Buttons extends Component {
 
   render() {
     const telegramItemsBase = this.state.newsItems.filter(
-      (item) => getCollectionName(item) === 'articles_tg',
+      (item) => getCollectionName(item) === 'model_threat_tg',
     );
     const forumItemsBase = this.state.newsItems.filter(
-      (item) => getCollectionName(item) === 'articles_forum',
+      (item) => getCollectionName(item) === 'model_threat_forum',
     );
     const newsSiteItemsBase = this.state.newsItems.filter(
-      (item) => getCollectionName(item) === 'articles',
+      (item) => getCollectionName(item) === 'model_threat_web',
     );
 
     const newsSiteItems = this.getFilteredItemsForPanel('news', newsSiteItemsBase);

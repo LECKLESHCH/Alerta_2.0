@@ -239,12 +239,23 @@ def _collect(client: TelegramClient, entity: Channel | Chat | User) -> bool:
             if message.to_dict().get("message")
         ]
 
-        # Performing the translation in parallel
+        # Performing translation (fallback to sequential mode if multiprocessing is unstable)
         logging.info(f"Translating messages into English (this may take some time)...")
-        with ProcessPoolExecutor() as executor:
-            translated_messages = list(
-                executor.map(_translate_message, messages_to_translate)
+        try:
+            with ProcessPoolExecutor() as executor:
+                translated_messages = list(
+                    executor.map(_translate_message, messages_to_translate)
+                )
+        except Exception as translate_error:
+            logging.warning(
+                f"Parallel translation failed ({translate_error}); switching to sequential translation"
             )
+            translated_messages = []
+            for message_dict in messages_to_translate:
+                try:
+                    translated_messages.append(_translate_message(message_dict))
+                except Exception:
+                    translated_messages.append(None)
 
         # Updating messages with translated texts
         for message_dict, translated in zip(messages_to_translate, translated_messages):

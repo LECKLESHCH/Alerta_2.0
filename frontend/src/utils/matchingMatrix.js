@@ -527,32 +527,187 @@ export function formatThreatDate(value) {
   }).format(date);
 }
 
+function extractObjectDefenseProfile(objectItem) {
+  const depth = objectItem?.depth || {};
+  const controlState = new Map();
+  const detailChunks = [];
+  let enabled = 0;
+  let total = 0;
+
+  Object.entries(depth).forEach(([level, payload]) => {
+    const controls = payload?.controls || payload || {};
+    Object.entries(controls).forEach(([key, value]) => {
+      if (typeof value === 'boolean') {
+        total += 1;
+        if (value) enabled += 1;
+        controlState.set(`${level}.${key}`, Boolean(value));
+      } else if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (normalized) detailChunks.push(normalized);
+      }
+    });
+  });
+
+  return {
+    controlState,
+    detailText: detailChunks.join(' '),
+    enabledRatio: total > 0 ? enabled / total : 0.5,
+  };
+}
+
+function extractThreatTargetProfile(threatItem) {
+  const levels = new Set(
+    Array.isArray(threatItem?.targeted_levels)
+      ? threatItem.targeted_levels.map((x) => String(x))
+      : [],
+  );
+
+  const controls = [];
+  const depth = threatItem?.depth || {};
+  Object.entries(depth).forEach(([level, payload]) => {
+    const controlEntries = payload && typeof payload === 'object' ? Object.entries(payload) : [];
+    controlEntries.forEach(([key, value]) => {
+      if (typeof value === 'boolean' && value) {
+        controls.push(`${level}.${key}`);
+      }
+    });
+  });
+
+  return {
+    levels,
+    controls,
+  };
+}
+
+function buildControlMatchMetrics(objectProfile, threatProfile) {
+  const targetedControls = threatProfile.controls;
+  const targetedCount = targetedControls.length;
+
+  if (!targetedCount) {
+    return {
+      targetedCount: 0,
+      exposedCount: 0,
+      mitigatedCount: 0,
+      controlExposureScore: 0,
+      controlCoverage: 0,
+      exposedControls: [],
+      mitigatedControls: [],
+    };
+  }
+
+  let exposedCount = 0;
+  let mitigatedCount = 0;
+  const exposedControls = [];
+  const mitigatedControls = [];
+  targetedControls.forEach((controlKey) => {
+    const hasControl = objectProfile.controlState.get(controlKey);
+    if (hasControl) {
+      mitigatedCount += 1;
+      mitigatedControls.push(controlKey);
+    } else {
+      exposedCount += 1;
+      exposedControls.push(controlKey);
+    }
+  });
+
+  const controlExposureScore = targetedCount ? exposedCount / targetedCount : 0;
+  const controlCoverage = targetedCount ? mitigatedCount / targetedCount : 0;
+
+  return {
+    targetedCount,
+    exposedCount,
+    mitigatedCount,
+    controlExposureScore,
+    controlCoverage,
+    exposedControls,
+    mitigatedControls,
+  };
+}
+
+function buildSemanticMatch(threatItem, objectProfile) {
+  const terms = Array.isArray(threatItem?.signal_terms)
+    ? threatItem.signal_terms.map((x) => String(x || '').trim().toLowerCase()).filter(Boolean)
+    : [];
+  if (!terms.length) {
+    return { score: 0.2, matchedTerms: [], allTerms: [] };
+  }
+
+  const matchedTerms = terms.filter((term) => objectProfile.detailText.includes(term));
+  const score = clamp(matchedTerms.length / Math.min(terms.length, 8));
+  return { score, matchedTerms, allTerms: terms };
+}
+
 export function buildObjectThreatMatches(objectItem, threatItems) {
   if (!objectItem) {
     return [];
   }
+  const objectProfile = extractObjectDefenseProfile(objectItem);
+  const objectCriticality = clamp(
+    0.4 +
+      0.3 * safeNumber(objectItem.businessCriticality, 0.5) +
+      0.3 * (1 - objectProfile.enabledRatio),
+  );
 
   return threatItems
     .map((threatItem) => {
       const threatIntensity = buildThreatIntensity(threatItem);
-      const objectCriticality = buildObjectCriticality(objectItem);
-      const {
-        score: relevanceScore,
-        sectorMatch,
-        regionMatch,
-        vectorMatch,
-        typeMatch,
-      } = buildRelevanceScore(threatItem, objectItem);
-      const exposureScore = buildExposureScore(threatItem, objectItem);
-      const weaknessScore = buildWeaknessScore(threatItem, objectItem);
+      const confidence = clamp(safeNumber(threatItem.llm_confidence, 0.55));
+      const semantic = buildSemanticMatch(threatItem, objectProfile);
+      const semanticMatchScore = semantic.score;
+      const threatProfile = extractThreatTargetProfile(threatItem);
+      const controlMetrics = buildControlMatchMetrics(objectProfile, threatProfile);
 
-      const score = clamp(
-        threatIntensity *
-          average([relevanceScore, exposureScore, weaknessScore]) *
-          objectCriticality,
+      const hasDirectTargeting = controlMetrics.targetedCount > 0;
+      const directApplicability = hasDirectTargeting
+        ? clamp(
+            0.75 * controlMetrics.controlExposureScore +
+              0.25 * semanticMatchScore,
+          )
+        : clamp(0.15 + 0.45 * semanticMatchScore);
+
+      const weaknessScore = clamp(
+        0.65 * (1 - objectProfile.enabledRatio) +
+          0.35 * controlMetrics.controlExposureScore,
+      );
+      const exposureScore = clamp(
+        0.6 * directApplicability + 0.4 * weaknessScore,
+      );
+      const relevanceScore = clamp(
+        0.5 * directApplicability + 0.3 * semanticMatchScore + 0.2 * confidence,
       );
 
+      let score = clamp(
+        0.45 * threatIntensity +
+          0.3 * exposureScore +
+          0.15 * relevanceScore +
+          0.1 * objectCriticality,
+      );
+
+      // Если прямых совпадений нет, риск ограничивается фоновым уровнем.
+      if (!hasDirectTargeting && semanticMatchScore < 0.25) {
+        score = Math.min(score, 0.2);
+      }
+
+      // Если все целевые контроли на объекте уже включены, снижаем потолок риска.
+      if (hasDirectTargeting && controlMetrics.exposedCount === 0) {
+        score = Math.min(score, 0.35);
+      }
+
       const level = getRiskLevel(score);
+      const reasons = [];
+      if (controlMetrics.targetedCount > 0) {
+        reasons.push(
+          `контрольные совпадения: ${controlMetrics.exposedCount}/${controlMetrics.targetedCount} уязвимы`,
+        );
+      } else {
+        reasons.push('прямых совпадений по контролям не найдено, применен фоновый риск');
+      }
+      if (semanticMatchScore >= 0.5) {
+        reasons.push('термины угрозы совпали с ПО/оборудованием объекта');
+      }
+      if (threatIntensity >= 0.72) {
+        reasons.push('высокая интенсивность угрозы (severity/эксплуатация/impact)');
+      }
 
       return {
         threat: threatItem,
@@ -563,16 +718,11 @@ export function buildObjectThreatMatches(objectItem, threatItems) {
         weaknessScore,
         threatIntensity,
         objectCriticality,
-        reasons: buildReasons(threatItem, objectItem, {
-          relevanceScore,
-          sectorMatch,
-          regionMatch,
-          vectorMatch,
-          typeMatch,
-          exposureScore,
-          weaknessScore,
-          threatIntensity,
-        }),
+        controlMetrics,
+        targetedControls: threatProfile.controls,
+        matchedSignalTerms: semantic.matchedTerms,
+        allSignalTerms: semantic.allTerms,
+        reasons: reasons.slice(0, 3),
       };
     })
     .sort((left, right) => right.score - left.score);

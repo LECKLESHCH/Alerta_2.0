@@ -19,6 +19,8 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "import:nvd": "node scripts/import_nvd.js",
+    "clone:cve-translated": "node scripts/clone_reference_cves.js",
+    "seed:model-objects": "node scripts/seed_model_objects.js",
     "reset:articles": "node scripts/reset_articles.js",
     "reinterpret:articles": "node scripts/reinterpret_articles.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",

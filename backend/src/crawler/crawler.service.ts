@@ -11,6 +11,7 @@ import { chromium } from 'playwright'; // Импортируем Playwright
 import { execFile, spawn } from 'child_process';
 import { promisify } from 'util';
 import { ReferenceIntelService } from '../reference-intel/reference-intel.service';
+import { ModelThreatService } from '../model-threats/model-threat.service';
 
 const execFilePromise = promisify(execFile);
 
@@ -173,6 +174,7 @@ function inferCountryFromContext(input: {
   if (normalizedCurrent !== 'Global') return normalizedCurrent;
 
   const hostname = (() => {
+    let telegramCrawlCompleted = false;
     try {
       return new URL(input.url).hostname.toLowerCase();
     } catch {
@@ -1754,6 +1756,7 @@ export class CrawlerService implements OnModuleInit {
     @InjectModel(Article.name) private articleModel: Model<Article>,
     private configService: ConfigService,
     private readonly referenceIntelService: ReferenceIntelService,
+    private readonly modelThreatService: ModelThreatService,
   ) {
     this.wrapLogger();
   }
@@ -1931,6 +1934,7 @@ export class CrawlerService implements OnModuleInit {
         },
       );
       this.logger.log('--- CRAWLING SITES FINISHED ---');
+      void this.rebuildThreatModelsForSource('web');
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Site crawl pipeline failed: ${message}`);
@@ -2065,7 +2069,7 @@ export class CrawlerService implements OnModuleInit {
       let insertedOrUpdated = 0;
       let skipped = 0;
 
-      const forumCollection = this.articleModel.db.collection('articles_forum');
+      const forumCollection = this.articleModel.db.collection('model_threat_forum_raw');
 
       const translateToRussian = async (
         input: string,
@@ -2384,6 +2388,7 @@ export class CrawlerService implements OnModuleInit {
       this.logger.log(
         `Forum ingest finished: processed=${processed}, upserted=${insertedOrUpdated}, skipped=${skipped}`,
       );
+      void this.rebuildThreatModelsForSource('forum');
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Forum ingest failed: ${message}`);
@@ -2404,6 +2409,7 @@ export class CrawlerService implements OnModuleInit {
 
     this.crawlAllRunning = true;
     this.activeCrawlScope = 'telegram';
+    let telegramCrawlCompleted = false;
     this.logger.log('--- START TELEGRAM CRAWL ---');
 
     try {
@@ -2482,9 +2488,26 @@ export class CrawlerService implements OnModuleInit {
         );
       }
 
+      const scrapeTimeoutMsRaw =
+        this.configService.get<string>('TG_SCRAPE_TIMEOUT_MS') ?? '240000';
+      const scrapeTimeoutMs = Number(scrapeTimeoutMsRaw);
+      const safeScrapeTimeoutMs =
+        Number.isFinite(scrapeTimeoutMs) && scrapeTimeoutMs > 0
+          ? Math.min(Math.floor(scrapeTimeoutMs), 30 * 60 * 1000)
+          : 240000;
+
       await new Promise<void>((resolve, reject) => {
         const child = spawn('python3', commandArgs, {
           cwd: tgDir,
+          env: {
+            ...process.env,
+            TG_MONGODB_COLLECTION:
+              this.configService.get<string>('TG_MONGODB_COLLECTION') ||
+              'tg_raw_messages',
+            TG_QDRANT_COLLECTION:
+              this.configService.get<string>('TG_QDRANT_COLLECTION') ||
+              'model_threat_tg',
+          },
           stdio: ['ignore', 'pipe', 'pipe'],
         });
 
@@ -2504,6 +2527,12 @@ export class CrawlerService implements OnModuleInit {
 
         const outState = { buf: '' };
         const errState = { buf: '' };
+        const timeoutHandle = setTimeout(() => {
+          this.logger.error(
+            `Telegram scraper timeout after ${safeScrapeTimeoutMs} ms, terminating process`,
+          );
+          child.kill('SIGTERM');
+        }, safeScrapeTimeoutMs);
 
         child.stdout.on('data', (chunk) => {
           flushLines(chunk, outState, (line) =>
@@ -2520,6 +2549,7 @@ export class CrawlerService implements OnModuleInit {
         child.on('error', (error) => reject(error));
 
         child.on('close', (code) => {
+          clearTimeout(timeoutHandle);
           if (outState.buf.trim()) this.logger.log(`[TG] ${outState.buf.trim()}`);
           if (errState.buf.trim()) this.logger.warn(`[TG] ${errState.buf.trim()}`);
           if (code === 0) {
@@ -2530,10 +2560,20 @@ export class CrawlerService implements OnModuleInit {
         });
       });
       this.logger.log('--- TELEGRAM CRAWL FINISHED ---');
+      telegramCrawlCompleted = true;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Telegram crawl failed: ${message}`);
     } finally {
+      // Даже при частичном падении scrape.py подбираем то, что успело сохраниться.
+      if (telegramCrawlCompleted) {
+        void this.rebuildThreatModelsForSource('tg');
+      } else {
+        this.logger.warn(
+          'Telegram crawl ended with errors; running best-effort tg rebuild from partial data',
+        );
+        void this.rebuildThreatModelsForSource('tg');
+      }
       this.crawlAllRunning = false;
       this.activeCrawlScope = null;
     }
@@ -2545,9 +2585,281 @@ export class CrawlerService implements OnModuleInit {
     this.logger.log(`--- CRAWLING SINGLE ARTICLE FINISHED ---`);
   }
 
+  private async rebuildThreatModelsForSource(source: 'web' | 'tg' | 'forum') {
+    try {
+      this.logger.log(`Rebuilding model-threats for source: ${source}`);
+      const result = await this.modelThreatService.rebuildSource(source, 300);
+      this.logger.log(
+        `model-threats rebuild done for ${source}: total=${result.total}, processed=${result.processed}, failed=${result.failed}`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`model-threats rebuild failed for ${source}: ${message}`);
+    }
+  }
+
+  private isCandidateArticleLink(linkHref: string, sourceUrl: string): boolean {
+    try {
+      const sourceHostname = new URL(sourceUrl).hostname;
+      const linkUrl = new URL(linkHref);
+      if (linkUrl.hostname !== sourceHostname) return false;
+      if (linkHref.includes('?sub=')) return false;
+      if (linkHref === sourceUrl || linkHref === `${sourceUrl}/`) return false;
+
+      const lowerHref = linkHref.toLowerCase();
+      if (
+        /\.(json|xml|rss|ico|svg|png|jpe?g|gif|webp|css|js|txt|pdf)(\?|$)/.test(
+          lowerHref,
+        )
+      ) {
+        return false;
+      }
+
+      switch (sourceHostname) {
+        case 'www.kommersant.ru':
+          return (
+            /\/doc\/\d{7}(\/|\?|$)/.test(linkHref) &&
+            !linkHref.includes('?from=')
+          );
+        case 'www.kaspersky.ru':
+          return (
+            linkHref.includes('/press-releases/') &&
+            !linkHref.includes('/about/press-releases?page=') &&
+            !linkHref.endsWith('/about/press-releases') &&
+            !linkHref.endsWith('/about/press-releases/') &&
+            linkHref.split('/').filter(Boolean).length >= 4
+          );
+        case 'www.securitylab.ru':
+          return (
+            (linkHref.includes('/news/') || linkHref.includes('/analytics/')) &&
+            /\.php$/.test(linkHref) &&
+            !linkHref.includes('/blog/') &&
+            !linkHref.includes('/forum/') &&
+            !/page\d+_\d+\.php/.test(linkHref)
+          );
+        case 'www.comnews.ru':
+          return (
+            linkHref.includes('/content/') &&
+            /\/\d{4}-\d{2}-\d{2}\//.test(linkHref)
+          );
+        case 'www.infowatch.ru':
+          return (
+            linkHref.includes('/analytics/novosti-ib/') &&
+            !linkHref.includes('/tag/') &&
+            !linkHref.includes('/page/')
+          );
+        case 'habr.com':
+          return /\/ru\/news\/\d{7}\/?$/.test(linkHref);
+        case 'www.f6.ru':
+          return (
+            linkHref.includes('/media-center/news/') &&
+            !linkHref.includes('/page/') &&
+            linkHref.split('/').filter(Boolean).length >= 4
+          );
+        case '1275.ru': {
+          if (
+            linkHref === 'https://1275.ru/vulnerability' ||
+            linkHref === 'https://1275.ru/news'
+          ) {
+            return false;
+          }
+          if (linkHref.includes('#comments')) return false;
+          const cleanedHref = linkHref.split('#')[0];
+          const isArticleLink =
+            (cleanedHref.includes('/vulnerability/') &&
+              cleanedHref.split('/').filter(Boolean).length > 2) ||
+            (cleanedHref.includes('/news/') &&
+              cleanedHref.split('/').filter(Boolean).length > 2);
+          const isBlacklisted =
+            cleanedHref.includes('/tag/') ||
+            cleanedHref.includes('/popular') ||
+            cleanedHref.includes('/subs') ||
+            cleanedHref.includes('/top') ||
+            cleanedHref.includes('/bookmarks') ||
+            cleanedHref.includes('/rss-feeds') ||
+            cleanedHref.includes('/rules') ||
+            cleanedHref.includes('/privacy-policy') ||
+            cleanedHref.includes('/contacts');
+          return isArticleLink && !isBlacklisted;
+        }
+        case 'infobezopasnost.ru':
+          return (
+            linkHref.includes('/blog/news/') &&
+            linkHref.split('/').filter(Boolean).length >= 4 &&
+            !linkHref.includes('/page/')
+          );
+        case 'www.bleepingcomputer.com':
+          return (
+            linkHref.includes('/news/') &&
+            !linkHref.endsWith('/news/') &&
+            !linkHref.endsWith('/news') &&
+            !linkHref.includes('/page/') &&
+            !linkHref.includes('/news/security/page/') &&
+            !linkHref.includes('/tag/') &&
+            !linkHref.includes('/downloads/') &&
+            !linkHref.includes('/guides/') &&
+            !linkHref.includes('/forums/') &&
+            linkHref.split('/').filter(Boolean).length >= 4
+          );
+        case 'www.securityweek.com':
+          return (
+            !linkHref.endsWith('/#') &&
+            !linkHref.endsWith('.com/') &&
+            !linkHref.endsWith('.com') &&
+            !linkHref.includes('#') &&
+            !linkHref.includes('/category/') &&
+            !linkHref.includes('/tag/') &&
+            !linkHref.includes('/topics/') &&
+            !linkHref.includes('/podcast/') &&
+            !linkHref.includes('/webcasts/') &&
+            !linkHref.includes('/white-papers/') &&
+            !linkHref.includes('/resources/') &&
+            !linkHref.includes('/about/') &&
+            !linkHref.includes('/contact') &&
+            !linkHref.includes('/contributors/') &&
+            !linkHref.includes('/subscribe') &&
+            !linkHref.includes('/feed') &&
+            !linkHref.includes('/privacy-policy') &&
+            !linkHref.includes('/submit-tip') &&
+            linkHref.split('/').filter(Boolean).length >= 2 &&
+            (() => {
+              const segments = linkHref.split('/').filter(Boolean);
+              const last = segments[segments.length - 1] ?? '';
+              return last.includes('-');
+            })()
+          );
+        case 'thehackernews.com':
+          return (
+            /\.html?$/.test(linkHref) &&
+            /\d{4}\/\d{2}\//.test(linkHref) &&
+            !linkHref.includes('/search/') &&
+            !linkHref.includes('/p/') &&
+            !linkHref.includes('/expert-insights/')
+          );
+        default:
+          return (
+            linkUrl.pathname.length > 3 &&
+            !linkHref.includes('/tag/') &&
+            !linkHref.includes('/category/') &&
+            !linkHref.includes('/search') &&
+            !linkHref.includes('/login') &&
+            !linkHref.includes('/signup')
+          );
+      }
+    } catch {
+      return false;
+    }
+  }
+
+  private async crawlSourceViaHttpFallback(source: Source): Promise<void> {
+    this.logger.warn(
+      `Playwright недоступен, включен HTTP fallback для источника: ${source.name}`,
+    );
+
+    const response = await fetch(source.url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `HTTP fallback failed for ${source.url}: status ${response.status}`,
+      );
+    }
+
+    const html = await response.text();
+    const sourceBase = new URL(source.url);
+    const hrefRegex = /href\s*=\s*["']([^"']+)["']/gi;
+    const links = new Set<string>();
+    let match: RegExpExecArray | null;
+
+    while ((match = hrefRegex.exec(html)) !== null) {
+      const rawHref = (match[1] || '').trim();
+      if (
+        !rawHref ||
+        rawHref.startsWith('#') ||
+        rawHref.startsWith('javascript:') ||
+        rawHref.startsWith('mailto:')
+      ) {
+        continue;
+      }
+
+      try {
+        const absoluteUrl = new URL(rawHref, sourceBase).href;
+        if (!this.isCandidateArticleLink(absoluteUrl, source.url)) continue;
+        links.add(absoluteUrl);
+      } catch {
+        continue;
+      }
+    }
+
+    const candidateLinks = Array.from(links);
+    this.logger.log(
+      `HTTP fallback: найдено ${candidateLinks.length} потенциальных статей на ${source.name}`,
+    );
+
+    await runWithConcurrency(candidateLinks, this.crawlConcurrency, async (link) => {
+      try {
+        await this.parseAndSave(link, source.name);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.error(`HTTP fallback: ошибка ссылки ${link}: ${message}`);
+      }
+    });
+  }
+
+  private stripHtmlTags(input: string): string {
+    return input
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private async extractArticleViaHttpFallback(
+    url: string,
+  ): Promise<{ title: string; text: string }> {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP fallback article fetch failed: ${response.status}`);
+    }
+
+    const html = await response.text();
+    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    const title = this.stripHtmlTags(titleMatch?.[1] || '').slice(0, 300);
+    const text = this.stripHtmlTags(html).slice(0, 24000);
+
+    if (!text || text.length < 80) {
+      throw new Error('HTTP fallback extracted empty content');
+    }
+
+    return {
+      title: title || url,
+      text,
+    };
+  }
+
   private async crawlSource(source: Source) {
     // рендер страницы Playwright
-    const browser = await chromium.launch();
+    let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
+    try {
+      browser = await chromium.launch();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Playwright launch failed for ${source.name}: ${message}`,
+      );
+      await this.crawlSourceViaHttpFallback(source);
+      return;
+    }
     const page = await browser.newPage();
 
     try {
@@ -2749,7 +3061,9 @@ export class CrawlerService implements OnModuleInit {
         `Ошибка при сборе данных с источника ${source.url}: ${message}`,
       );
     } finally {
-      await browser.close();
+      if (browser) {
+        await browser.close();
+      }
     }
   }
 
@@ -2764,6 +3078,26 @@ export class CrawlerService implements OnModuleInit {
     this.inFlightUrls.add(url);
     const dryRun = this.configService.get<string>('CRAWLER_DRY_RUN') === '1';
     try {
+      const translateToRussian = async (
+        input: string,
+        label: string,
+      ): Promise<string> => {
+        const text = input.trim();
+        if (!text || containsCyrillic(text) || this.disableLlm) return input;
+        try {
+          const prompt = `Переведи на русский язык, сохранив имена собственные, бренды, CVE, названия ПО/ОС и технические термины в исходной форме при необходимости. Верни только перевод без пояснений.\nТип: ${label}\nТекст:\n${text}`;
+          const response = await withTimeout(
+            () => this.chatOpenAI.invoke(prompt),
+            this.classifierTimeoutMs,
+            `Translate ${label}`,
+          );
+          const content = normalizeModelContent(response?.content);
+          return content?.trim() || input;
+        } catch {
+          return input;
+        }
+      };
+
       const existingArticle = await this.articleModel.findOne({ url });
       if (existingArticle) {
         this.logger.log(`Статья уже существует, пропускаем: ${url}`);
@@ -2773,35 +3107,59 @@ export class CrawlerService implements OnModuleInit {
         await this.ensureQdrantCollection();
       }
 
-      // извлечение текста Trafilatura
+      // извлечение текста Trafilatura (с HTTP fallback при проблемах Python/env)
       const parserScriptPath = path.join(
         process.cwd(),
         'scripts',
         'parse_article.py',
       );
-      const { stdout, stderr } = await execFilePromise(
-        'python3',
-        [parserScriptPath, url],
-        {
-          maxBuffer: 10 * 1024 * 1024,
-        },
-      );
+      let articleData:
+        | {
+            title?: string;
+            text?: string;
+            [key: string]: unknown;
+          }
+        | null = null;
 
-      if (stderr) {
-        this.logger.error(
-          `Ошибка выполнения Python скрипта для ${url}: ${stderr}`,
+      try {
+        const { stdout, stderr } = await execFilePromise(
+          'python3',
+          [parserScriptPath, url],
+          {
+            maxBuffer: 10 * 1024 * 1024,
+          },
         );
-        return null;
+
+        if (stderr) {
+          throw new Error(stderr);
+        }
+
+        const rawArticleData = safeJsonParse(stdout);
+        if (!isParsedArticleResult(rawArticleData)) {
+          throw new Error('invalid JSON payload');
+        }
+        articleData = rawArticleData;
+      } catch (pythonError) {
+        const message =
+          pythonError instanceof Error
+            ? pythonError.message
+            : String(pythonError);
+        this.logger.warn(
+          `Python parser failed for ${url}, using HTTP fallback: ${message}`,
+        );
+        const fallback = await this.extractArticleViaHttpFallback(url);
+        articleData = {
+          title: fallback.title,
+          text: fallback.text,
+          error: '',
+          date: null,
+        };
       }
 
-      const rawArticleData = safeJsonParse(stdout);
-      if (!isParsedArticleResult(rawArticleData)) {
-        this.logger.error(
-          `Ошибка парсинга статьи ${url}: invalid JSON payload`,
-        );
+      if (!articleData) {
+        this.logger.error(`Ошибка парсинга статьи ${url}: no article data`);
         return null;
       }
-      const articleData = rawArticleData;
 
       if (
         typeof articleData.error === 'string' &&
@@ -3517,6 +3875,28 @@ text=${text.length > 700 ? text.substring(0, 700) : text}
         classification.subcategory,
       );
 
+      // В таблицы угроз сохраняем только реальные угрозы с заполненной категорией.
+      if (classification.type !== 'threat' || !storedCategory) {
+        this.logger.log(
+          `Не сохраняем материал (не threat или без категории): ${url}`,
+        );
+        return null;
+      }
+
+      const savedTitle = await translateToRussian(
+        articleData.title ?? 'No Title',
+        'title',
+      );
+      const savedText = await translateToRussian(articleData.text ?? 'No Text', 'text');
+      const savedReasoning = await translateToRussian(
+        classification.reasoning ?? '',
+        'reasoning',
+      );
+      const savedInterpretationSummary = await translateToRussian(
+        interpretationSignals.interpretation_summary ?? '',
+        'interpretation_summary',
+      );
+
       const logPath =
         this.configService.get<string>('CRAWLER_CLASSIFICATION_LOG_PATH') ??
         path.join(process.cwd(), 'tmp', 'classification_results.jsonl');
@@ -3559,8 +3939,8 @@ text=${text.length > 700 ? text.substring(0, 700) : text}
       const newArticle = new this.articleModel({
         url: url,
         source: sourceName,
-        title: articleData.title ?? 'No Title',
-        text: articleData.text ?? 'No Text',
+        title: savedTitle,
+        text: savedText,
         publishedAt,
         author: articleData.author ?? 'Unknown',
         type: classification.type,
@@ -3568,7 +3948,7 @@ text=${text.length > 700 ? text.substring(0, 700) : text}
         subcategory: storedSubcategory,
         severity: classification.severity,
         country: inferredCountry,
-        classification_reasoning: classification.reasoning,
+        classification_reasoning: savedReasoning,
         target_sector: metrics.target_sector,
         sub_sector: metrics.sub_sector,
         attack_scale: metrics.attack_scale,
@@ -3595,7 +3975,7 @@ text=${text.length > 700 ? text.substring(0, 700) : text}
         threat_actor: interpretationSignals.threat_actor,
         malware_family: interpretationSignals.malware_family,
         evidence_tokens: interpretationSignals.evidence_tokens,
-        interpretation_summary: interpretationSignals.interpretation_summary,
+        interpretation_summary: savedInterpretationSummary,
         interpretation_grounding_score:
           interpretationResult.grounding_score,
         interpreted_reference_matches: interpretationResult.matches,

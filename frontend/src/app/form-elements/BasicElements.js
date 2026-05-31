@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import { Form } from 'react-bootstrap';
+import { Collapse } from 'react-bootstrap';
 import { createObjectPassport } from '../../api/objects';
 
 const objectTypes = [
@@ -20,36 +21,137 @@ const industries = [
   'Промышленность',
 ];
 
-const criticalityClasses = ['К1', 'К2', 'К3'];
-const maturityLevels = ['Низкая', 'Средняя', 'Высокая'];
-
+const protectionLevels = [
+  { value: 'high', label: 'Высокий' },
+  { value: 'medium', label: 'Средний' },
+  { value: 'low', label: 'Низкий' },
+];
 const initialFormState = {
   objectName: '',
   objectType: 'ЦОД',
-  criticalityClass: 'К2',
+  protectionLevel: 'medium',
   industry: 'Энергетика',
-  subIndustry: '',
   region: '',
   ownerUnit: '',
-  businessCriticality: 0.8,
-  impactConfidentiality: 0.7,
-  impactIntegrity: 0.9,
-  impactAvailability: 1,
-  downtimeTolerance: '',
-  attackSurface: 0.6,
-  remoteAccessLevel: 0.7,
-  integrationLevel: '',
-  internetExposed: true,
-  contractorAccess: false,
-  userInteractionDependency: false,
-  isIcs: true,
-  segmentationLevel: 0.6,
-  legacyShare: 0.4,
-  cloudPresence: 0.2,
-  securityMaturity: 'Средняя',
-  monitoringMaturity: 'Средняя',
-  patchMaturity: 'Средняя',
   comments: '',
+  depth: {
+    physical: {
+      securityGuard: true,
+      checkpoint: true,
+      cctv: true,
+      visitorLog: true,
+      contractorControl: true,
+      serverRoomProtection: true,
+      accessCards: true,
+      biometrics: false,
+      zoneSeparation: true,
+      keyStorageControl: true,
+      lockedRacks: true,
+      temperatureSensors: true,
+      fireSuppression: true,
+      backupPower: true,
+      upsGenerators: true,
+    },
+    perimeter: {
+      firewall: true,
+      firewallDetails: '',
+      dmz: true,
+      nat: true,
+      proxy: true,
+      vpn: true,
+      vpnDetails: '',
+      publishedPortsControl: true,
+      remoteAccessControl: true,
+      webServicesProtection: true,
+      mailGatewayProtection: true,
+      idsIps: true,
+      idsIpsDetails: '',
+      anomalyDetection: true,
+    },
+    network: {
+      vlan: true,
+      segmentation: true,
+      criticalSegmentIsolation: true,
+      acl: true,
+      routingControl: true,
+      switchProtection: true,
+      netflow: true,
+      trafficAnalysis: true,
+      anomalyMonitoring: true,
+      networkEquipment: '',
+    },
+    endpoints: {
+      antivirus: true,
+      edrXdr: true,
+      edrXdrDetails: '',
+      osUpdates: true,
+      softwareControl: true,
+      hardening: true,
+      disableUnusedServices: true,
+      patchManagement: true,
+      mdm: false,
+      diskEncryption: true,
+      remoteWipe: false,
+      usbControl: true,
+    },
+    applications: {
+      waf: true,
+      owaspControls: true,
+      inputValidation: true,
+      secureSdlc: true,
+      codeReview: true,
+      sastDast: true,
+      pentest: true,
+      vulnerabilityScanning: true,
+      remediationSla: true,
+      appSecurityStack: '',
+    },
+    iam: {
+      mfa: true,
+      passwordPolicy: true,
+      sso: false,
+      rbac: true,
+      leastPrivilege: true,
+      segregationOfDuties: true,
+      userLifecycle: true,
+      terminatedUserDisable: true,
+      serviceAccountControl: true,
+      iamSystem: '',
+    },
+    data: {
+      storageEncryption: true,
+      backup: true,
+      dataAccessControl: true,
+      tls: true,
+      protectedChannels: true,
+      dataClassification: true,
+      personalDataHandling: true,
+      tradeSecretHandling: true,
+      backupStorageLocation: '',
+    },
+    monitoringResponse: {
+      centralizedLogs: true,
+      siem: true,
+      siemDetails: '',
+      eventCorrelation: true,
+      irProcedures: true,
+      playbooks: true,
+      soc: true,
+      threatIntel: false,
+      incidentInvestigation: true,
+      retrospectiveAnalysis: true,
+    },
+    governance: {
+      securityPolicies: true,
+      regulations: true,
+      standards: true,
+      awarenessTraining: true,
+      phishingSimulations: true,
+      riskAssessment: true,
+      compliance: true,
+      contractorAudit: true,
+    },
+  },
 };
 
 function renderOptions(items) {
@@ -60,53 +162,69 @@ function renderOptions(items) {
   ));
 }
 
-function SectionCard({ title, description, children }) {
+function SectionCard({ title, children }) {
   return (
     <div className="card">
       <div className="card-body">
         <h4 className="card-title">{title}</h4>
-        {description ? <p className="card-description">{description}</p> : null}
         {children}
       </div>
     </div>
   );
 }
 
-function ScoreField({
-  id,
-  name,
+function CheckItem({
+  checked,
+  onToggle,
   label,
-  value,
-  onChange,
-  helperText,
+  details,
+  onDetailsChange,
+  detailsPlaceholder,
 }) {
   return (
-    <Form.Group>
-      <div className="d-flex align-items-center justify-content-between">
-        <label htmlFor={id} className="mb-1">
+    <div className="mb-1">
+      <div className="form-check">
+        <label className="form-check-label text-white">
+          <input
+            type="checkbox"
+            className="form-check-input"
+            checked={checked}
+            onChange={onToggle}
+          />
           {label}
+          <i className="input-helper"></i>
         </label>
-        <span className="text-muted">{Number(value).toFixed(1)}</span>
       </div>
-      <Form.Control
-        type="range"
-        className="form-control-range"
-        id={id}
-        name={name}
-        min="0"
-        max="1"
-        step="0.1"
-        value={value}
-        onChange={onChange}
-      />
-      {helperText ? <small className="text-muted">{helperText}</small> : null}
-    </Form.Group>
+      {checked && typeof details === 'string' ? (
+        <div className="mt-1 pl-4">
+          <Form.Control
+            type="text"
+            value={details}
+            onChange={onDetailsChange}
+            placeholder={detailsPlaceholder}
+          />
+        </div>
+      ) : null}
+    </div>
   );
+}
+
+function chunkByColumns(items, columns = 3) {
+  const rows = [];
+  for (let i = 0; i < items.length; i += columns) {
+    rows.push(items.slice(i, i + columns));
+  }
+  return rows;
 }
 
 export class BasicElements extends Component {
   state = {
     form: { ...initialFormState },
+    openDepthRows: {
+      row1: false,
+      row2: false,
+      row3: false,
+    },
     isSaving: false,
     saveError: '',
     saveSuccess: '',
@@ -127,6 +245,66 @@ export class BasicElements extends Component {
     }));
   };
 
+  handleDepthToggle = (section, key) => {
+    this.setState((prevState) => ({
+      form: {
+        ...prevState.form,
+        depth: {
+          ...prevState.form.depth,
+          [section]: {
+            ...prevState.form.depth[section],
+            [key]: !prevState.form.depth[section][key],
+          },
+        },
+      },
+    }));
+  };
+
+  handleDepthDetails = (section, key, value) => {
+    this.setState((prevState) => ({
+      form: {
+        ...prevState.form,
+        depth: {
+          ...prevState.form.depth,
+          [section]: {
+            ...prevState.form.depth[section],
+            [key]: value,
+          },
+        },
+      },
+    }));
+  };
+
+  getDepthRow(section) {
+    const rowMap = {
+      physical: 'row1',
+      perimeter: 'row1',
+      network: 'row1',
+      endpoints: 'row2',
+      applications: 'row2',
+      iam: 'row2',
+      data: 'row3',
+      monitoringResponse: 'row3',
+      governance: 'row3',
+    };
+    return rowMap[section] || 'row1';
+  }
+
+  toggleDepthSection = (section) => {
+    const row = this.getDepthRow(section);
+    this.setState((prevState) => ({
+      openDepthRows: {
+        ...prevState.openDepthRows,
+        [row]: !prevState.openDepthRows[row],
+      },
+    }));
+  };
+
+  buildDepthSummary = () => {
+    const { depth } = this.state.form;
+    return JSON.stringify(depth, null, 2);
+  };
+
   handleReset = () => {
     this.setState({
       form: { ...initialFormState },
@@ -139,7 +317,6 @@ export class BasicElements extends Component {
 
   handleSubmit = async (event) => {
     event.preventDefault();
-
     this.setState({
       isSaving: true,
       saveError: '',
@@ -148,8 +325,25 @@ export class BasicElements extends Component {
     });
 
     try {
-      const saved = await createObjectPassport(this.state.form);
+      const payload = {
+        objectName: this.state.form.objectName,
+        objectType: this.state.form.objectType,
+        industry: this.state.form.industry,
+        region: this.state.form.region,
+        ownerUnit: this.state.form.ownerUnit,
+        protectionLevel: this.state.form.protectionLevel,
+        depth: this.state.form.depth,
+        comments: [
+          this.state.form.comments.trim(),
+          '',
+          '--- Defence in Depth (structured draft) ---',
+          this.buildDepthSummary(),
+        ]
+          .filter(Boolean)
+          .join('\n'),
+      };
 
+      const saved = await createObjectPassport(payload);
       this.setState({
         isSaving: false,
         saveError: '',
@@ -166,13 +360,77 @@ export class BasicElements extends Component {
     }
   };
 
+  renderDepthCard(title, sectionKey, items) {
+    const rowKey = this.getDepthRow(sectionKey);
+    const isOpen = this.state.openDepthRows[rowKey];
+    const orderedItems = [
+      ...items.filter((item) => !item.detailsKey),
+      ...items.filter((item) => item.detailsKey),
+    ];
+    const rows = chunkByColumns(orderedItems, 1);
+
+    return (
+      <div className="col-lg-4 col-md-6 grid-margin stretch-card" key={sectionKey}>
+        <div className="card w-100">
+          <div
+            className="card-body d-flex flex-column p-0"
+            style={{ minHeight: '100%' }}
+          >
+            <button
+              type="button"
+              className="btn btn-link text-left w-100 d-flex align-items-center justify-content-between px-3 py-3"
+              style={{ textDecoration: 'none' }}
+              onClick={() => this.toggleDepthSection(sectionKey)}
+            >
+              <h5 className="mb-0 text-white">{title}</h5>
+              <i className={`mdi ${isOpen ? 'mdi-chevron-up' : 'mdi-chevron-down'} text-white`}></i>
+            </button>
+            <Collapse in={isOpen}>
+              <div className="px-3 pb-3 pt-0">
+                {rows.map((row, rowIndex) => (
+                  <div className="row" key={`${sectionKey}-${rowIndex}`}>
+                    {row.map((item) => (
+                      <div className="col-12 mb-1" key={`${sectionKey}-${item.key}`}>
+                        <CheckItem
+                          checked={this.state.form.depth[sectionKey][item.key]}
+                          onToggle={() => this.handleDepthToggle(sectionKey, item.key)}
+                          label={item.label}
+                          details={
+                            item.detailsKey
+                              ? this.state.form.depth[sectionKey][item.detailsKey]
+                              : undefined
+                          }
+                          onDetailsChange={
+                            item.detailsKey
+                              ? (event) =>
+                                  this.handleDepthDetails(
+                                    sectionKey,
+                                    item.detailsKey,
+                                    event.target.value,
+                                  )
+                              : undefined
+                          }
+                          detailsPlaceholder={item.detailsPlaceholder}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </Collapse>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   render() {
     const { form, isSaving, saveError, saveSuccess, savedObjectId } = this.state;
 
     return (
       <div>
         <div className="page-header">
-          <h3 className="page-title">Папорт объекта КИИ</h3>
+          <h3 className="page-title">Паспорт объекта КИИ</h3>
           <nav aria-label="breadcrumb">
             <ol className="breadcrumb">
               <li className="breadcrumb-item">
@@ -181,7 +439,7 @@ export class BasicElements extends Component {
                 </a>
               </li>
               <li className="breadcrumb-item active" aria-current="page">
-                Папорт объекта КИИ
+                Паспорт объекта КИИ
               </li>
             </ol>
           </nav>
@@ -190,9 +448,7 @@ export class BasicElements extends Component {
         <Form onSubmit={this.handleSubmit}>
           <div className="row">
             <div className="col-12 grid-margin">
-              <SectionCard
-                title="Профиль объекта"
-              >
+              <SectionCard title="Профиль объекта">
                 <div className="row">
                   <div className="col-md-6">
                     <Form.Group>
@@ -203,7 +459,6 @@ export class BasicElements extends Component {
                         name="objectName"
                         value={form.objectName}
                         onChange={this.handleInputChange}
-                        placeholder="Региональный центр обработки данных"
                       />
                     </Form.Group>
                   </div>
@@ -223,20 +478,6 @@ export class BasicElements extends Component {
                   </div>
                   <div className="col-md-4">
                     <Form.Group>
-                      <label htmlFor="criticalityClass">Класс значимости</label>
-                      <select
-                        className="form-control alerta-filter-control alerta-object-select"
-                        id="criticalityClass"
-                        name="criticalityClass"
-                        value={form.criticalityClass}
-                        onChange={this.handleInputChange}
-                      >
-                        {renderOptions(criticalityClasses)}
-                      </select>
-                    </Form.Group>
-                  </div>
-                  <div className="col-md-4">
-                    <Form.Group>
                       <label htmlFor="industry">Отрасль</label>
                       <select
                         className="form-control alerta-filter-control alerta-object-select"
@@ -251,18 +492,23 @@ export class BasicElements extends Component {
                   </div>
                   <div className="col-md-4">
                     <Form.Group>
-                      <label htmlFor="subIndustry">Подотрасль</label>
-                      <Form.Control
-                        type="text"
-                        id="subIndustry"
-                        name="subIndustry"
-                        value={form.subIndustry}
+                      <label htmlFor="protectionLevel">Уровень защиты</label>
+                      <select
+                        className="form-control alerta-filter-control alerta-object-select"
+                        id="protectionLevel"
+                        name="protectionLevel"
+                        value={form.protectionLevel}
                         onChange={this.handleInputChange}
-                        placeholder="Генерация / распределение / сбыт"
-                      />
+                      >
+                        {protectionLevels.map((item) => (
+                          <option key={item.value} value={item.value}>
+                            {item.label}
+                          </option>
+                        ))}
+                      </select>
                     </Form.Group>
                   </div>
-                  <div className="col-md-6">
+                  <div className="col-md-4">
                     <Form.Group>
                       <label htmlFor="region">Регион</label>
                       <Form.Control
@@ -271,20 +517,6 @@ export class BasicElements extends Component {
                         name="region"
                         value={form.region}
                         onChange={this.handleInputChange}
-                        placeholder="Россия / Центральный федеральный округ"
-                      />
-                    </Form.Group>
-                  </div>
-                  <div className="col-md-6">
-                    <Form.Group>
-                      <label htmlFor="ownerUnit">Ответственное подразделение</label>
-                      <Form.Control
-                        type="text"
-                        id="ownerUnit"
-                        name="ownerUnit"
-                        value={form.ownerUnit}
-                        onChange={this.handleInputChange}
-                        placeholder="Центр мониторинга ИБ"
                       />
                     </Form.Group>
                   </div>
@@ -292,226 +524,161 @@ export class BasicElements extends Component {
               </SectionCard>
             </div>
 
-            <div className="col-md-6 grid-margin stretch-card">
-              <SectionCard
-                title="Критичность"
-                description="Поля, которые потом будут влиять на вес объекта в расчёте риска."
-              >
-                <ScoreField
-                  id="businessCriticality"
-                  label="Критичность объекта"
-                  value={form.businessCriticality}
-                  onChange={this.handleInputChange}
-                  helperText="От 0 до 1. Чем выше, тем сильнее объект влияет на итоговый риск."
-                  name="businessCriticality"
-                />
-                <ScoreField
-                  id="impactConfidentiality"
-                  label="Влияние на конфиденциальность"
-                  value={form.impactConfidentiality}
-                  onChange={this.handleInputChange}
-                  name="impactConfidentiality"
-                />
-                <ScoreField
-                  id="impactIntegrity"
-                  label="Влияние на целостность"
-                  value={form.impactIntegrity}
-                  onChange={this.handleInputChange}
-                  name="impactIntegrity"
-                />
-                <ScoreField
-                  id="impactAvailability"
-                  label="Влияние на доступность"
-                  value={form.impactAvailability}
-                  onChange={this.handleInputChange}
-                  name="impactAvailability"
-                />
-                <Form.Group>
-                  <label htmlFor="downtimeTolerance">Допустимый простой</label>
-                  <Form.Control
-                    type="text"
-                    id="downtimeTolerance"
-                    name="downtimeTolerance"
-                    value={form.downtimeTolerance}
-                    onChange={this.handleInputChange}
-                    placeholder="Не более 30 минут"
-                  />
-                </Form.Group>
-              </SectionCard>
-            </div>
+            <div className="col-12">
+              <div className="row">
+                {this.renderDepthCard('1. Физический уровень', 'physical', [
+              { key: 'securityGuard', label: 'Наличие охраны' },
+              { key: 'checkpoint', label: 'Наличие КПП' },
+              { key: 'cctv', label: 'Видеонаблюдение' },
+              { key: 'visitorLog', label: 'Журнал посещений' },
+              { key: 'contractorControl', label: 'Контроль подрядчиков' },
+              { key: 'serverRoomProtection', label: 'Охрана серверных помещений' },
+              { key: 'accessCards', label: 'Электронные пропуска' },
+              { key: 'biometrics', label: 'Биометрия' },
+              { key: 'zoneSeparation', label: 'Разграничение зон доступа' },
+              { key: 'keyStorageControl', label: 'Контроль хранения ключей' },
+              { key: 'lockedRacks', label: 'Закрытые стойки' },
+              { key: 'temperatureSensors', label: 'Датчики температуры' },
+              { key: 'fireSuppression', label: 'Пожаротушение' },
+              { key: 'backupPower', label: 'Резервное питание' },
+              { key: 'upsGenerators', label: 'UPS/генераторы' },
+                ])}
 
-            <div className="col-md-6 grid-margin stretch-card">
-              <SectionCard
-                title="Экспозиция объекта"
-                description="Параметры, которые будут связаны с векторами атаки и доступностью объекта."
-              >
-                <ScoreField
-                  id="attackSurface"
-                  label="Оценка поверхности атаки"
-                  value={form.attackSurface}
-                  onChange={this.handleInputChange}
-                  helperText="Показывает, насколько много внешних и внутренних точек входа доступно атакующему."
-                  name="attackSurface"
-                />
-                <ScoreField
-                  id="remoteAccessLevel"
-                  label="Уровень удалённого доступа"
-                  value={form.remoteAccessLevel}
-                  onChange={this.handleInputChange}
-                  name="remoteAccessLevel"
-                />
-                <Form.Group>
-                  <label htmlFor="integrationLevel">Внешние интеграции</label>
-                  <Form.Control
-                    type="text"
-                    id="integrationLevel"
-                    name="integrationLevel"
-                    value={form.integrationLevel}
-                    onChange={this.handleInputChange}
-                    placeholder="VPN, подрядчики, API, веб-сервисы"
-                  />
-                </Form.Group>
-                <div className="form-check mb-2">
-                  <label className="form-check-label text-muted">
-                    <input
-                      type="checkbox"
-                      className="form-check-input"
-                      name="internetExposed"
-                      checked={form.internetExposed}
-                      onChange={this.handleInputChange}
-                    />
-                    Объект доступен из внешней сети
-                    <i className="input-helper"></i>
-                  </label>
-                </div>
-                <div className="form-check mb-2">
-                  <label className="form-check-label text-muted">
-                    <input
-                      type="checkbox"
-                      className="form-check-input"
-                      name="contractorAccess"
-                      checked={form.contractorAccess}
-                      onChange={this.handleInputChange}
-                    />
-                    Есть доступ подрядчиков
-                    <i className="input-helper"></i>
-                  </label>
-                </div>
-                <div className="form-check">
-                  <label className="form-check-label text-muted">
-                    <input
-                      type="checkbox"
-                      className="form-check-input"
-                      name="userInteractionDependency"
-                      checked={form.userInteractionDependency}
-                      onChange={this.handleInputChange}
-                    />
-                    Высокая зависимость от действий пользователя
-                    <i className="input-helper"></i>
-                  </label>
-                </div>
-              </SectionCard>
-            </div>
+                {this.renderDepthCard('2. Периметровая защита', 'perimeter', [
+              { key: 'firewall', label: 'Firewall', detailsKey: 'firewallDetails', detailsPlaceholder: 'Например: Cisco ASA, FortiGate, UserGate' },
+              { key: 'dmz', label: 'DMZ' },
+              { key: 'nat', label: 'NAT' },
+              { key: 'proxy', label: 'Прокси' },
+              { key: 'vpn', label: 'VPN', detailsKey: 'vpnDetails', detailsPlaceholder: 'Например: IPsec/OpenVPN + MFA' },
+              { key: 'publishedPortsControl', label: 'Контроль опубликованных портов' },
+              { key: 'remoteAccessControl', label: 'Контроль удаленного доступа' },
+              { key: 'webServicesProtection', label: 'Защита веб-сервисов' },
+              { key: 'mailGatewayProtection', label: 'Защита почтовых шлюзов' },
+              { key: 'idsIps', label: 'IDS/IPS', detailsKey: 'idsIpsDetails', detailsPlaceholder: 'Например: Suricata, Snort, Kaspersky KATA' },
+              { key: 'anomalyDetection', label: 'Анализ аномалий' },
+                ])}
 
-            <div className="col-md-6 grid-margin stretch-card">
-              <SectionCard
-                title="Технологический профиль"
-                description="Признаки архитектуры, которые помогут сопоставлять объект с типами угроз."
-              >
-                <div className="form-check mb-3">
-                  <label className="form-check-label text-muted">
-                    <input
-                      type="checkbox"
-                      className="form-check-input"
-                      name="isIcs"
-                      checked={form.isIcs}
-                      onChange={this.handleInputChange}
-                    />
-                    Объект относится к АСУ ТП / технологическому сегменту
-                    <i className="input-helper"></i>
-                  </label>
-                </div>
-                <ScoreField
-                  id="segmentationLevel"
-                  label="Уровень сегментации"
-                  value={form.segmentationLevel}
-                  onChange={this.handleInputChange}
-                  name="segmentationLevel"
-                />
-                <ScoreField
-                  id="legacyShare"
-                  label="Доля legacy-компонентов"
-                  value={form.legacyShare}
-                  onChange={this.handleInputChange}
-                  name="legacyShare"
-                />
-                <ScoreField
-                  id="cloudPresence"
-                  label="Облачное присутствие"
-                  value={form.cloudPresence}
-                  onChange={this.handleInputChange}
-                  name="cloudPresence"
-                />
-              </SectionCard>
-            </div>
+                {this.renderDepthCard('3. Сетевой уровень', 'network', [
+              { key: 'vlan', label: 'VLAN' },
+              { key: 'segmentation', label: 'Сегментация' },
+              { key: 'criticalSegmentIsolation', label: 'Изоляция критических сегментов' },
+              { key: 'acl', label: 'ACL' },
+              { key: 'routingControl', label: 'Контроль маршрутизации' },
+              { key: 'switchProtection', label: 'Защищенность коммутаторов' },
+              { key: 'netflow', label: 'NetFlow' },
+              { key: 'trafficAnalysis', label: 'Анализ трафика' },
+              { key: 'anomalyMonitoring', label: 'Мониторинг аномалий' },
+              {
+                key: 'networkEquipment',
+                label: 'Сетевое оборудование',
+                detailsKey: 'networkEquipment',
+                detailsPlaceholder: 'Например: Cisco Catalyst, Juniper EX, MikroTik',
+              },
+                ])}
 
-            <div className="col-md-6 grid-margin stretch-card">
-              <SectionCard
-                title="Качество защиты"
-                description="Здесь задаются качественные оценки защитных мер, которые позже можно перевести в числовые веса."
-              >
-                <Form.Group>
-                  <label htmlFor="securityMaturity">Качество ИБ</label>
-                  <select
-                    className="form-control alerta-filter-control alerta-object-select"
-                    id="securityMaturity"
-                    name="securityMaturity"
-                    value={form.securityMaturity}
-                    onChange={this.handleInputChange}
-                  >
-                    {renderOptions(maturityLevels)}
-                  </select>
-                </Form.Group>
-                <Form.Group>
-                  <label htmlFor="monitoringMaturity">Качество мониторинга</label>
-                  <select
-                    className="form-control alerta-filter-control alerta-object-select"
-                    id="monitoringMaturity"
-                    name="monitoringMaturity"
-                    value={form.monitoringMaturity}
-                    onChange={this.handleInputChange}
-                  >
-                    {renderOptions(maturityLevels)}
-                  </select>
-                </Form.Group>
-                <Form.Group>
-                  <label htmlFor="patchMaturity">Качество патч-менеджмента</label>
-                  <select
-                    className="form-control alerta-filter-control alerta-object-select"
-                    id="patchMaturity"
-                    name="patchMaturity"
-                    value={form.patchMaturity}
-                    onChange={this.handleInputChange}
-                  >
-                    {renderOptions(maturityLevels)}
-                  </select>
-                </Form.Group>
-              </SectionCard>
+                {this.renderDepthCard('4. Уровень конечных устройств', 'endpoints', [
+              { key: 'antivirus', label: 'Антивирус' },
+              { key: 'edrXdr', label: 'EDR/XDR', detailsKey: 'edrXdrDetails', detailsPlaceholder: 'Например: Defender for Endpoint, CrowdStrike' },
+              { key: 'osUpdates', label: 'Обновления ОС' },
+              { key: 'softwareControl', label: 'Контроль ПО' },
+              { key: 'hardening', label: 'Hardening серверов' },
+              { key: 'disableUnusedServices', label: 'Отключение ненужных служб' },
+              { key: 'patchManagement', label: 'Управление патчами' },
+              { key: 'mdm', label: 'MDM' },
+              { key: 'diskEncryption', label: 'Шифрование' },
+              { key: 'remoteWipe', label: 'Удаленное стирание' },
+              { key: 'usbControl', label: 'Контроль USB' },
+                ])}
+
+                {this.renderDepthCard('5. Уровень приложений', 'applications', [
+              { key: 'waf', label: 'WAF' },
+              { key: 'owaspControls', label: 'Защита от OWASP Top 10' },
+              { key: 'inputValidation', label: 'Проверка входных данных' },
+              { key: 'secureSdlc', label: 'Secure SDLC' },
+              { key: 'codeReview', label: 'Code review' },
+              { key: 'sastDast', label: 'SAST/DAST' },
+              { key: 'pentest', label: 'Pentest' },
+              { key: 'vulnerabilityScanning', label: 'Vulnerability scanning' },
+              { key: 'remediationSla', label: 'Сроки устранения уязвимостей' },
+              {
+                key: 'appSecurityStack',
+                label: 'Стек защиты приложений',
+                detailsKey: 'appSecurityStack',
+                detailsPlaceholder: 'Например: NGINX+ModSecurity, SonarQube, Burp, PT AF',
+              },
+                ])}
+
+                {this.renderDepthCard('6. Уровень идентификации и доступа (IAM)', 'iam', [
+              { key: 'mfa', label: 'MFA' },
+              { key: 'passwordPolicy', label: 'Политика паролей' },
+              { key: 'sso', label: 'SSO' },
+              { key: 'rbac', label: 'RBAC' },
+              { key: 'leastPrivilege', label: 'Минимальные привилегии' },
+              { key: 'segregationOfDuties', label: 'Segregation of duties' },
+              { key: 'userLifecycle', label: 'Жизненный цикл пользователей' },
+              { key: 'terminatedUserDisable', label: 'Отключение уволенных сотрудников' },
+              { key: 'serviceAccountControl', label: 'Контроль сервисных аккаунтов' },
+              {
+                key: 'iamSystem',
+                label: 'IAM-система',
+                detailsKey: 'iamSystem',
+                detailsPlaceholder: 'Например: Keycloak, AD/Entra ID, FreeIPA',
+              },
+                ])}
+
+                {this.renderDepthCard('7. Уровень данных', 'data', [
+              { key: 'storageEncryption', label: 'Шифрование хранения данных' },
+              { key: 'backup', label: 'Резервное копирование' },
+              { key: 'dataAccessControl', label: 'Контроль доступа к данным' },
+              { key: 'tls', label: 'TLS' },
+              { key: 'protectedChannels', label: 'Защищенные каналы передачи' },
+              { key: 'dataClassification', label: 'Классификация данных' },
+              { key: 'personalDataHandling', label: 'Контроль персональных данных' },
+              { key: 'tradeSecretHandling', label: 'Контроль коммерческой тайны' },
+              {
+                key: 'backupStorageLocation',
+                label: 'Хранение резервных копий',
+                detailsKey: 'backupStorageLocation',
+                detailsPlaceholder: 'Например: offline backup / отдельный сегмент / S3-compatible storage',
+              },
+                ])}
+
+                {this.renderDepthCard('8. Мониторинг и реагирование', 'monitoringResponse', [
+              { key: 'centralizedLogs', label: 'Централизованный сбор логов' },
+              { key: 'siem', label: 'SIEM', detailsKey: 'siemDetails', detailsPlaceholder: 'Например: Splunk, ELK, QRadar, MaxPatrol SIEM' },
+              { key: 'eventCorrelation', label: 'Корреляция событий' },
+              { key: 'irProcedures', label: 'IR-процедуры' },
+              { key: 'playbooks', label: 'Playbooks' },
+              { key: 'soc', label: 'SOC' },
+              { key: 'threatIntel', label: 'Threat Intelligence' },
+              { key: 'incidentInvestigation', label: 'Расследование инцидентов' },
+              { key: 'retrospectiveAnalysis', label: 'Ретроспективный анализ' },
+                ])}
+
+                {this.renderDepthCard('9. Организационный уровень', 'governance', [
+              { key: 'securityPolicies', label: 'Политики ИБ' },
+              { key: 'regulations', label: 'Регламенты' },
+              { key: 'standards', label: 'Стандарты' },
+              { key: 'awarenessTraining', label: 'Awareness training' },
+              { key: 'phishingSimulations', label: 'Phishing simulations' },
+              { key: 'riskAssessment', label: 'Risk assessment' },
+              { key: 'compliance', label: 'Compliance' },
+              { key: 'contractorAudit', label: 'Аудит подрядчиков' },
+                ])}
+              </div>
             </div>
 
             <div className="col-12 grid-margin">
-              <SectionCard
-                title="Комментарии"
-              >
+              <SectionCard title="Комментарии">
                 <Form.Group className="mb-0">
                   <Form.Control
                     as="textarea"
-                    rows={6}
+                    rows={5}
                     id="comments"
                     name="comments"
                     value={form.comments}
                     onChange={this.handleInputChange}
-                    placeholder="Здесь можно зафиксировать особенности объекта, ограничения и наблюдения."
+                    placeholder="Дополнительные замечания аналитика."
                   />
                 </Form.Group>
               </SectionCard>
@@ -521,9 +688,6 @@ export class BasicElements extends Component {
               <div className="card">
                 <div className="card-body">
                   <h4 className="card-title">Черновик паспорта</h4>
-                  <p className="card-description mb-4">
-                    После сохранения запись будет добавлена в коллекцию <code>objects</code>.
-                  </p>
                   {saveSuccess ? (
                     <div className="alert alert-success" role="alert">
                       {saveSuccess}

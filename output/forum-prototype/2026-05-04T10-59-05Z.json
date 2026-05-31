@@ -1,0 +1,232 @@
+{
+  "generated_at": "2026-05-04T10:59:05.345373+00:00",
+  "model": "openai/gpt-oss-20b:free",
+  "threads_total": 6,
+  "results": [
+    {
+      "thread": {
+        "source_id": "reddit_netsec",
+        "source_label": "Reddit /r/netsec",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "/r/netsec's Q1 2026 Information Security Hiring Thread",
+        "thread_url": "https://www.reddit.com/r/netsec/comments/1qn22ig/rnetsecs_q1_2026_information_security_hiring/",
+        "author": "netsec_burn",
+        "published_at": "2026-01-26T01:29:14+00:00",
+        "body": "**Overview** If you have open positions at your company for information security professionals and would like to hire from the /r/netsec user base, please leave a comment detailing any open job listings at your company. We would also like to encourage you to post internship positions as well. Many of our readers are currently in school or are just finishing their education. Please reserve top level comments for those posting open positions. **Rules & Guidelines** Include the company name in the post. If you want to be topsykret, go recruit elsewhere. Include the geographic location of the position along with the availability of relocation assistance or remote work. * If you are a third party recruiter, you must disclose this in your posting. * Please be thorough and upfront with the position details. * Use of non-hr'd (realistic) requirements is encouraged. * While it's fine to link to the position on your companies website, provide the important details in the comment. * Mention if applicants should apply officially through HR, or directly through you. * Please clearly list citizenship, visa, and security clearance requirements. You can see an example of acceptable posts by [perusing past hiring threads](https://www.reddit.com/r/netsec/search?q=Information+Security+Hiring+Thread&sort=new&restrict_sr=on). **Feedback** Feedback and suggestions are welcome, but please don't hijack this thread (use moderator mail instead.)",
+        "context_messages": [
+          "At Preply we are hiring for two positions: \\- Cloud Security Engineer \\- Application Security Engineer It would be an hybrid role with high flexibility for working from home, but you need to be based/relocate in/to **Barcelona (Spain) or Kyiv (Ukraine)** I'm part of the security team and one (potential) interviewer during the hiring process. Its a senior role but we are open to hiring people with less experience if we see an strong cultural fit and good potential. We value skills with AI tooling. I can have a first conversation with you if you are interested and refer you to our hiring manager directly (that will help with the chances to get a first interview) Right now we are a 5 people in the security team. The company is experiencing a huge growth and we expect to growth accordingly, hiring 3 more people and potentially splitting the team afterwards. We are looking for people with ideas, proactive, eager to shape our company security culture. You would be expected to be part of an on-call rotation (we rotate 1 week each, right now its 1/5 weeks) for security incidents (paid extra per day). We value experience with AWS, Cloudflare and Cloudfront, SIEM solutions, Datadog, Kubernetes, Okta, Graphql, Django/Python, Compliance (SOC-2, ISO, PCI\\_DSS), Risk assessment, vulnerability management, automation, and more... The job posts: \\- [https://preply.com/en/careers/apply?ashby\\_jid=3c30ae7f-dff5-4e1a-bd71-8ab82969bc7b&job\\_title=Senior%20Security%20Engineer%20-%20Platform&job\\_team=Engineering&job\\_location=Barcelona](https://preply.com/en/careers/apply?ashby_jid=3c30ae7f-dff5-4e1a-bd71-8ab82969bc7b&job_title=Senior%20Security%20Engineer%20-%20Platform&job_team=Engineering&job_location=Barcelona) \\- [https://preply.com/en/careers/apply?ashby\\_jid=4429f6b9-2e3f-4796-940d-075be446525a&job\\_title=Senior%20Security%20Engineer%20-%20Application&job\\_team=Engineering&job\\_location=Barcelona](https://preply.com/en/careers/apply?ashby_jid=4429f6b9-2e3f-4796-940d-075be446525a&job_title=Senior%20Security%20Engineer%20-%20Application&job_team=Engineering&job_location=Barcelona)",
+          "Paramount is seeking a Director of Security Operations for Paramount Streaming - [https://careers.paramount.com/job/New-York-Director%2C-Security-Operations-NY-10036/1364239700/](https://careers.paramount.com/job/New-York-Director%2C-Security-Operations-NY-10036/1364239700/) This role is in office. The role covers: \\- Security Operations, Incident Leadership & Team Leadership \\- Security Tooling & Operational Integration \\- Policy, Risk & Exception Management \\- Vendor, Partner & Content Provider Security Please apply via the link above"
+        ],
+        "metadata": {
+          "subreddit": "netsec",
+          "score": 11,
+          "num_comments": 25
+        }
+      },
+      "prefilter": {
+        "passed": false,
+        "matched_keywords": [
+          "rce",
+          "vulnerability"
+        ],
+        "negative_hits": [
+          "career",
+          "hiring thread",
+          "job listings"
+        ],
+        "prefilter_score": 0.333
+      },
+      "status": "skipped_by_prefilter"
+    },
+    {
+      "thread": {
+        "source_id": "reddit_netsec",
+        "source_label": "Reddit /r/netsec",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "r/netsec monthly discussion & tool thread",
+        "thread_url": "https://www.reddit.com/r/netsec/comments/1t0thd8/rnetsec_monthly_discussion_tool_thread/",
+        "author": "albinowax",
+        "published_at": "2026-05-01T13:29:05+00:00",
+        "body": "Questions regarding netsec and discussion related directly to netsec are welcome here, as is sharing tool links. # Rules & Guidelines * Always maintain civil discourse. Be awesome to one another - moderator intervention will occur if necessary. * Avoid NSFW content unless absolutely necessary. If used, mark it as being NSFW. If left unmarked, the comment will be removed entirely. * If linking to classified content, mark it as such. If left unmarked, the comment will be removed entirely. * Avoid use of memes. If you have something to say, say it with real words. * All discussions and questions should directly relate to netsec. * No tech support is to be requested or provided on r/netsec. As always, the content & discussion guidelines should also be observed on r/netsec. # Feedback Feedback and suggestions are welcome, but don't post it here. Please send it to the moderator inbox.",
+        "context_messages": [
+          "I am building [https://boarnet.io](https://boarnet.io) which is a community honeypot network specifically meant for threat research, allowing both myself and others to track threat actors and TTPs. My two main personal projects with this are being able to identify threat actors even when they change IPs by fingerprinting and feeding this data into machine learning to help identify threat actors near real time.",
+          "I've been working on improving my take on CVE monitoring this past month: [https://stackflag.com](https://stackflag.com) Not intended to compete with or replace OpenCVE or more advanced tooling for secpros. The itch was that every existing option either assumes you already know what you're watching for, or wants you on an enterprise scanning footprint to get any value. There's a gap in the middle for the SME, freelance dev, or small MSP whose insurer has started asking how they manage technical vulnerabilities. How it works: * Describe your stack in plain English (\\`nginx, WordPress, PostgreSQL, Node.js\\`) and watches are generated against the matching products. No CPE strings to author by hand. Mapping stays editable. * Sources: NVD, GHSA, OSV, CISA KEV, EPSS, Vulnrichment. Refreshed hourly. * Each flagged CVE comes with a plain-English summary, severity context, and a remediation pointer. * Delivery via email digest, instant alert, or webhook. Read / unread / acknowledge triage states and an audit log for the framework that's asking. Free tier is open, no waitlist. Public CVE feed at /cve with RSS if that's all you want. Genuine feedback welcome, particularly on the natural-language to product mapping where I expect the rough edges to be."
+        ],
+        "metadata": {
+          "subreddit": "netsec",
+          "score": 11,
+          "num_comments": 9
+        }
+      },
+      "prefilter": {
+        "passed": false,
+        "matched_keywords": [
+          "rce"
+        ],
+        "negative_hits": [
+          "monthly discussion"
+        ],
+        "prefilter_score": 0.167
+      },
+      "status": "skipped_by_prefilter"
+    },
+    {
+      "thread": {
+        "source_id": "reddit_cybersecurity",
+        "source_label": "Reddit /r/cybersecurity",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "Mentorship Monday - Post All Career, Education and Job questions here!",
+        "thread_url": "https://www.reddit.com/r/cybersecurity/comments/1t31oyj/mentorship_monday_post_all_career_education_and/",
+        "author": "AutoModerator",
+        "published_at": "2026-05-04T00:00:10+00:00",
+        "body": "This is the weekly thread for career and education questions and advice. There are no stupid questions; so, what do *you* want to know about certs/degrees, job requirements, and any other general cybersecurity career questions? Ask away! Interested in what other people are asking, or think your question has been asked before? Have a look through prior weeks of content - though we're working on making this more easily searchable for the future.",
+        "context_messages": [
+          "I have a strictly legal background in Data Privacy / AI Compliance / Cybersecurity - law degrees ranging from Bachelor's - Masters - LLM. etc, I live in Paris and am a native English & French speaker, I want to train for a Junior Cybersecurity Analyst job, is this doable? I've had internships and jobs as a Data Privacy & AI Compliance legal counsel in big companies and law firms (Accenture, L'Oréal, and others). Do I need to go to university and get a degree? or is training on TryHackMe etc then getting certifications enough? I have never learned how to code, I am starting from zero in this field (besides basic knowledge of technical terms I learned through my Cybersecurity & Data Privacy legal background) The goal is to get a Cybersecurity Analyst job (junior of course), but also maybe leveraging my legal background in Data Privacy and Cybersecurity? (not really sure if companies would think is a plus or not). Is this doable? I was planning on training for the next 6-9 months and then applying to jobs, but I want realistic answers. Any help / input is appreciated, thanks!!",
+          "If I get my bachelors in cybersecurity, will I be stuck to *only* this field once I graduate? Or can I start working a job in something else maybe related to management, sales etc right after I graduate?",
+          "Break into cybersec. I am currently doing thm. How to move from there",
+          "What skills should I focus on first for an entry-level cybersecurity role—networking, Linux, or certifications like Security+? Also, how important are personal projects or labs when applying for internships/jobs?"
+        ],
+        "metadata": {
+          "subreddit": "cybersecurity",
+          "score": 5,
+          "num_comments": 15
+        }
+      },
+      "prefilter": {
+        "passed": false,
+        "matched_keywords": [],
+        "negative_hits": [
+          "career",
+          "training"
+        ],
+        "prefilter_score": 0.0
+      },
+      "status": "skipped_by_prefilter"
+    },
+    {
+      "thread": {
+        "source_id": "reddit_cybersecurity",
+        "source_label": "Reddit /r/cybersecurity",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "Hi! We are Flare.io",
+        "thread_url": "https://www.reddit.com/r/cybersecurity/comments/1szx1ef/hi_we_are_flareio/",
+        "author": "good_at_chess",
+        "published_at": "2026-04-30T14:04:16+00:00",
+        "body": "Hey r/cybersecurity 👋 We're [Flare.io](http://Flare.io) and we’re excited to host an AMA with myself (Eric), Olivier u/obilodeau (Principal Cybersecurity Researcher), Tammy \\[u/CTIQueen\\] (Senior Threat Intelligence Researcher), and Estelle u/Puzzleheaded_End4024 (Threat Intelligence Researcher). What we've been working on: • DPRK IT workers: We published research earlier this year on North Korean IT workers infiltrating Western companies. • Infostealers: We've published extensive research on how infostealer logs fuel the cybercrime economy, from Telegram markets to credential stuffing pipelines to initial access brokerage. Including our 2026 State of Enterprise Infostealer Identity Exposure report. • Flare academy: Free trainings for practitioners and students on topics like identity security, ransomware, and cybercrime, and the Flare Academy Discord community. We're happy to talk about: • Cybercrime ecosystems: infostealers, initial access brokers, Telegram markets, dark web forums • Career advice: breaking in, moving up, specializing, or pivoting within cybersecurity • Research methodology: how we scope, conduct, and publish cybercrime research • And more!",
+        "context_messages": [
+          "Hi! I'm one of the people who won all 6 shirts from the Flare CTF / Knights of the Stolen Session. I'm curious if any of you have insights into the state of the job market in cybersecurity right now. I've been applying for heaps of entry-level positions (SOC, Helpdesk, you name it). I have my Bachelor's in cybersecurity, some intern experience, but can hardly manage to even land an interview at the moment. I currently: * Work as a cybersecurity tutor * Volunteer in a tech-related position * Network as much as possible (contacts at EY, Deloitte, Mandiant, KPMG, Arctic Wolf, IBM) * Create my own tools in various languages * Follow trends & recent news in cybersecurity I'm interested & have experience in multiple fields of cybersec, primarily web and networking, as well as active directory (both offensive and defensive). If you have any recommendations for certs to go after or other ways to make myself more appealing to a hiring team, they would be much appreciated!",
+          "Thank god for the perfect timing!!! I’m in a similar space from a more research/academic angle. I’ve written on Oracle‑related risk before its recent instability and on Neuralink / BCI “brainjacking”‑type threats (still in progress tho.....) and what they mean for safety, privacy, and potential abuse. Coming from that background, I really appreciate how rigorous your methodology looks and how clearly you present underground data and tradecraft. A few questions for you all: 1. For someone who already does deep‑dive research and long‑form writeups, what would you consider the most valuable way to build a portfolio that’s relevant to your type of cybercrime/CTI work? 2. When you’re scoping a new research project (e.g., a specific crimeware vertical, community, or platform), what criteria do you use to decide “this is worth months of data collection and analysis”? 3. How do you balance publishing actionable detail for defenders with not over‑enabling criminals who are watching your work just as closely? 4. For someone aiming long‑term at a CTI / cybercrime research role, what signals or skills actually stand out to you when you’re hiring (beyond the usual “OSINT, scripting, writing” list)? Really appreciate you taking the time to share your experience with the community and for raising the bar on how we talk about cybercrime infrastructure and identity abuse. Shout out to you guys man. Both the Flare Academy and Flare Research!"
+        ],
+        "metadata": {
+          "subreddit": "cybersecurity",
+          "score": 0,
+          "num_comments": 16
+        }
+      },
+      "prefilter": {
+        "passed": false,
+        "matched_keywords": [
+          "credential",
+          "infostealer",
+          "ransomware",
+          "stealer"
+        ],
+        "negative_hits": [
+          "career",
+          "training"
+        ],
+        "prefilter_score": 0.667
+      },
+      "status": "skipped_by_prefilter"
+    },
+    {
+      "thread": {
+        "source_id": "stackexchange_security",
+        "source_label": "Information Security Stack Exchange",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "Is there anything I can do to deal with emails mistakenly sent to my personal email address?",
+        "thread_url": "https://security.stackexchange.com/questions/246317/is-there-anything-i-can-do-to-deal-with-emails-mistakenly-sent-to-my-personal-em",
+        "author": "Nzall",
+        "published_at": "2021-03-18T14:36:06+00:00",
+        "body": "Lately I've been getting 2-3 emails per day of greeting card spam (I think it's called), aka spammers signing my personal email address up for contact forms and accounts with random sites, ranging from a webstore selling food supplements in the Netherlands to the City of Brighton tourism board in England. This means I'm getting random emails from a random set of addresses, but because these emails are from legitimate companies with a (thus far) good reputation, and because the only thing in these emails that might trigger spam rules is the name in the greeting line at the start of the mail (which is the vector these spammer are using to get their spam reflected), these are not at all blocked or even marked by my ISP's spam filtering. Thus far, I'm not getting so many spam mails, so it stays manageable, but I'm worried this might escalate as spammers find more and more sites that are susceptible to greeting card spam. I've tried alerting one of the sites that was used for this, but I can't really do this for every site this happens on. Is there anything in particular I can do about this type of spam? Beyond the nuclear \"change my email address\" option, which I really don't consider an option.",
+        "context_messages": [],
+        "metadata": {
+          "site": "security.stackexchange",
+          "tags": [
+            "email",
+            "spam"
+          ],
+          "score": 0,
+          "answer_count": 0,
+          "is_answered": false
+        }
+      },
+      "prefilter": {
+        "passed": false,
+        "matched_keywords": [],
+        "negative_hits": [],
+        "prefilter_score": 0.0
+      },
+      "status": "skipped_by_prefilter"
+    },
+    {
+      "thread": {
+        "source_id": "stackexchange_security",
+        "source_label": "Information Security Stack Exchange",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "How to push back on dismissive coworker comments on RCE exploits in dependencies \"because the core functionality of our product is RCE\"?",
+        "thread_url": "https://security.stackexchange.com/questions/286922/how-to-push-back-on-dismissive-coworker-comments-on-rce-exploits-in-dependencies",
+        "author": "Nzall",
+        "published_at": "2026-05-04T07:25:58+00:00",
+        "body": "We sometimes get automated vulnerability scans from our customers related to our product. Sometimes those scans contain reports of RCE vulnerabilities in our dependencies. We do of course fix vulnerabilities that they find (and oftentimes already had a fixed version available for customers that they hadn't installed yet), but one of our developers tends to be somewhat dismissive about RCE vulnerabilities because our product is a devops tool that allows our customers to run their own automated build and deploy scripts on their own servers using a client/server architecture, so effectively our product's core feature is \"remote code execution\". I'd like to be able to push back on this next time they make a remark like that. What are arguments I can use to explain that this is different?",
+        "context_messages": [],
+        "metadata": {
+          "site": "security.stackexchange",
+          "tags": [
+            "vulnerability",
+            "remote-code-execution"
+          ],
+          "score": 0,
+          "answer_count": 1,
+          "is_answered": true
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "exploit",
+          "rce",
+          "remote code execution",
+          "vulnerability"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.667
+      },
+      "status": "analyzed",
+      "normalized": {
+        "is_relevant": false,
+        "signal_kind": "other",
+        "type": "discussion",
+        "russian_title": null,
+        "russian_summary": null,
+        "russian_interpretation": null,
+        "category": null,
+        "severity": null,
+        "vulnerability_type": null,
+        "country": null,
+        "cve_mentions": [],
+        "vendor_candidates": [],
+        "product_candidates": [],
+        "evidence_tokens": [],
+        "confidence": 0.0,
+        "reasoning_ru": "Вопрос относится к внутреннему обсуждению подходов к оценке RCE‑уязвимостей и не содержит конкретного сигнала угрозы, уязвимости, инцидента или продажи доступа. Поэтому он не попадает под критерии релевантности."
+      }
+    }
+  ]
+}

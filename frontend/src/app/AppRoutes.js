@@ -8,7 +8,7 @@ const Dashboard = lazy(() => import('./dashboard/Dashboard'));
 
 const Buttons = lazy(() => import('./basic-ui/Buttons'));
 const Dropdowns = lazy(() => import('./basic-ui/Dropdowns'));
-const Typography = lazy(() => import('./basic-ui/Typography'));
+const ThreatBank = lazy(() => import('./basic-ui/ThreatBank'));
 
 const BasicElements = lazy(() => import('./form-elements/BasicElements'));
 const ObjectModelsList = lazy(() => import('./form-elements/ObjectModelsList'));
@@ -36,7 +36,7 @@ class AppRoutes extends Component {
 
           <ProtectedRoute path="/basic-ui/buttons" component={ Buttons } />
           <ProtectedRoute path="/basic-ui/dropdowns" component={ Dropdowns } />
-          <ProtectedRoute path="/basic-ui/typography" component={ Typography } />
+          <ProtectedRoute path="/basic-ui/threat-bank" component={ ThreatBank } />
 
           <ProtectedRoute path="/form-elements/basic-elements" component={ BasicElements } />
           <ProtectedRoute path="/form-elements/object-models" component={ ObjectModelsList } />

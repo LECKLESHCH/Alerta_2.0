@@ -1,20 +1,27 @@
 import hashlib
 import json
 import logging
-
-from elasticsearch import Elasticsearch, helpers
 from telethon.types import *
 
 from configs import es_ca_cert_path, es_password, es_username
 from helper.logger import OUTPUT_DIR, OUTPUT_NDJSON
 
-# https://www.elastic.co/guide/en/elasticsearch/client/python-api/current/connecting.html
-if None not in [es_ca_cert_path, es_password, es_username]:
+try:
+    from elasticsearch import Elasticsearch, helpers
+except Exception as exc:
+    Elasticsearch = None
+    helpers = None
+    logging.warning(
+        f"Elasticsearch Python client unavailable, ES export disabled: {exc}"
+    )
+
+es = None
+if Elasticsearch is not None and None not in [es_ca_cert_path, es_password, es_username]:
     es = Elasticsearch(
         "https://localhost:9200",
         basic_auth=(es_username, es_password),
         ca_certs=es_ca_cert_path,
-    )  # Update with your credentials
+    )
 
 # print(es.info())  # https://www.elastic.co/guide/en/elasticsearch/client/python-api/current/connecting.html
 
@@ -120,6 +127,10 @@ def index_json_file_to_es(file_path: str, index_name: str) -> bool:
     Returns:
         True if the JSON file was successfully indexed into Elasticsearch
     """
+    if Elasticsearch is None or helpers is None or es is None:
+        logging.warning("Elasticsearch client is not ready, skipping ES export")
+        return False
+
     if None in [es_username, es_password, es_ca_cert_path]:
         logging.warning(
             f"Cannot index JSON file to Elasticsearch due to missing configurations"

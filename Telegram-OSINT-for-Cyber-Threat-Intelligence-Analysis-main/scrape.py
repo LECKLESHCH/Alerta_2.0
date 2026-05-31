@@ -193,8 +193,15 @@ if __name__ == "__main__":
         # Start the Telegram client to iteract with its APIs
         with TelegramClientContext() as client:
 
-            # Connect to Telegram
-            client.start(PHONE_NUMBER)
+            # Connect to Telegram in non-interactive mode.
+            # If session is not authorized, fail fast instead of blocking on code/password prompt.
+            client.connect()
+            if not client.is_user_authorized():
+                logging.critical(
+                    "Telegram session is not authorized. Run interactive login once "
+                    "(python scrape.py --get-entities) and complete code/2FA, then retry."
+                )
+                raise RuntimeError("Telegram session unauthorized")
 
             # Channel, Chat, User types explained: https://stackoverflow.com/questions/76683847/telethon-same-entity-type-for-a-group-and-channel-in-telethon
             #                                      https://docs.telethon.dev/en/stable/concepts/chats-vs-channels.html

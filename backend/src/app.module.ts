@@ -4,6 +4,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ArticleModule } from './article/article.module';
 import { AuthModule } from './auth/auth.module';
 import { ObjectModule } from './objects/object.module';
+import { ModelObjectModule } from './model-objects/model-object.module';
+import { ModelThreatModule } from './model-threats/model-threat.module';
 import { ReferenceIntelModule } from './reference-intel/reference-intel.module';
 import * as path from 'path';
 import { AppController } from './app.controller';
@@ -36,6 +38,8 @@ const optionalFeatureModules = [
     AuthModule,
     ArticleModule,
     ObjectModule,
+    ModelObjectModule,
+    ModelThreatModule,
     ReferenceIntelModule,
     ...optionalFeatureModules,
   ],

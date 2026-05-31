@@ -26,7 +26,10 @@ export interface ArticleListResult {
 
 @Injectable()
 export class ArticleService {
-  private readonly extraArticleCollections = ['articles_tg', 'articles_forum'];
+  private readonly extraArticleCollections = [
+    'model_threat_tg',
+    'model_threat_forum',
+  ];
 
   constructor(
     @InjectModel(Article.name) private articleModel: Model<Article>,
@@ -49,7 +52,7 @@ export class ArticleService {
 
     const basePipeline: Record<string, unknown>[] = [
       { $match: filter },
-      { $addFields: { dbCollection: 'articles' } },
+      { $addFields: { dbCollection: 'model_threat_web' } },
     ];
 
     for (const collectionName of this.extraArticleCollections) {

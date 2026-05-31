@@ -1,0 +1,352 @@
+{
+  "generated_at": "2026-05-04T11:15:13.554643+00:00",
+  "model": "openai/gpt-oss-20b:free",
+  "threads_total": 6,
+  "results": [
+    {
+      "thread": {
+        "source_id": "reddit_netsec",
+        "source_label": "Reddit /r/netsec",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "High Fidelity Check for the cPanel Authentication Bypass (CVE-2026-41940)",
+        "thread_url": "https://www.reddit.com/r/netsec/comments/1szqnax/high_fidelity_check_for_the_cpanel_authentication/",
+        "author": "Mempodipper",
+        "published_at": "2026-04-30T09:01:20+00:00",
+        "body": "",
+        "context_messages": [],
+        "metadata": {
+          "subreddit": "netsec",
+          "score": 8,
+          "num_comments": 0
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "bypass",
+          "cve-"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.333
+      },
+      "status": "analyzed",
+      "normalized": {
+        "is_relevant": true,
+        "signal_kind": "vulnerability",
+        "type": "threat",
+        "russian_title": "Обнаружен обход аутентификации в cPanel (CVE-2026-41940)",
+        "russian_summary": "В cPanel выявлен уязвимый механизм аутентификации, позволяющий злоумышленнику получить доступ без пароля. Уязвимость получила номер CVE-2026-41940 и может быть использована для полного контроля над сервером.",
+        "russian_interpretation": "Атака позволяет получить полный доступ к cPanel, что открывает путь к дальнейшим компрометациям сервера и данных.",
+        "category": "Уязвимости и эксплуатация",
+        "severity": "high",
+        "vulnerability_type": null,
+        "country": "Global",
+        "cve_mentions": [
+          "CVE-2026-41940"
+        ],
+        "vendor_candidates": [
+          "cPanel"
+        ],
+        "product_candidates": [
+          "cPanel"
+        ],
+        "evidence_tokens": [
+          "CVE-2026-41940",
+          "Authentication Bypass"
+        ],
+        "confidence": 0.9,
+        "reasoning_ru": "Пост содержит конкретную информацию о CVE-2026-41940, указывая на уязвимость в аутентификации cPanel. Это прямой сигнал угрозы, поэтому релевантно и классифицируется как уязвимость."
+      }
+    },
+    {
+      "thread": {
+        "source_id": "reddit_netsec",
+        "source_label": "Reddit /r/netsec",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "Copy Fail exploit lets 732 bytes hijack Linux systems and quietly grab root",
+        "thread_url": "https://www.reddit.com/r/netsec/comments/1szduu3/copy_fail_exploit_lets_732_bytes_hijack_linux/",
+        "author": "OkReport5065",
+        "published_at": "2026-04-29T22:31:20+00:00",
+        "body": "This new Linux kernel bug called Copy Fail (CVE-2026-31431) is kinda terrifying because it’s not complicated at all. A normal user can run a tiny 732-byte script and get root, no race conditions or luck required, and it works across major distros like Ubuntu, RHEL, and SUSE. The exploit quietly modifies the page cache instead of the file on disk, so integrity checks don’t catch it, but the kernel still executes the tampered version in memory. Even worse, since the page cache is shared, it can potentially cross container boundaries too. Patch ASAP if your distro hasn’t already, because this one feels way too reliable…",
+        "context_messages": [
+          "Linking the website as I actually read the post: https://copy.fail/ Security folks smarter than me, is it me or this much more wild than it even seems?",
+          "since OP, the linked article, and the copy.fail site all sloppily neglected to mention which kernel versions are actually vulnerable: https://lore.kernel.org/linux-cve-announce/2026042214-CVE-2026-31431-3d65@gregkh/T/ > Affected and fixed versions > =========================== > > Issue introduced in 4.14 with commit 72548b093ee38a6d4f2a19e6ef1948ae05c181f7 and fixed in 6.18.22 with commit fafe0fa2995a0f7073c1c358d7d3145bcc9aedd8 > Issue introduced in 4.14 with commit 72548b093ee38a6d4f2a19e6ef1948ae05c181f7 and fixed in 6.19.12 with commit ce42ee423e58dffa5ec03524054c9d8bfd4f6237 > Issue introduced in 4.14 with commit 72548b093ee38a6d4f2a19e6ef1948ae05c181f7 and fixed in 7.0 with commit a664bf3d603dc3bdcf9ae47cc21e0daec706d7a5",
+          "For anyone looking at the detections side of this, patching is obviously the priority one, but if you need visibility into whether this was exploited before you patched. Traditional FIM won't help since it never writes to disk. I put together a detection toolkit with auditd rules for AF_ALG socket creation. Also includes Sigma and YARA rules. https://github.com/kadir/copy-fail-CVE-2026-31431-IOC"
+        ],
+        "metadata": {
+          "subreddit": "netsec",
+          "score": 300,
+          "num_comments": 66
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "cve-",
+          "exploit",
+          "exploited"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.5
+      },
+      "status": "analyzed",
+      "normalized": {
+        "is_relevant": true,
+        "signal_kind": "vulnerability",
+        "type": "threat",
+        "russian_title": "Эксплойт Copy Fail позволяет получить root на Linux за 732 байта",
+        "russian_summary": "Новая уязвимость в ядре Linux (CVE‑2026‑31431) позволяет обычному пользователю получить права root, запустив небольшой скрипт длиной 732 байта. Эксплойт модифицирует кэш страниц, а не файл на диске, поэтому традиционные проверки целостности не обнаруживают изменения. Уязвимость затрагивает все основные дистрибутивы, включая Ubuntu, RHEL и SUSE, и может пересекать границы контейнеров.",
+        "russian_interpretation": "Для аналитика важно знать, что это критическая уязвимость, позволяющая быстро и без сложных условий получить root. Поскольку она работает через кэш страниц, обычные средства обнаружения (FIM) не помогут, а требуется активное патч‑менеджмент и специальные правила аудита.",
+        "category": "Уязвимости и эксплуатация",
+        "severity": "high",
+        "vulnerability_type": "n-day",
+        "country": "Global",
+        "cve_mentions": [
+          "CVE-2026-31431"
+        ],
+        "vendor_candidates": [],
+        "product_candidates": [],
+        "evidence_tokens": [
+          "CVE-2026-31431",
+          "root",
+          "732-byte",
+          "page cache",
+          "container boundary"
+        ],
+        "confidence": 0.95,
+        "reasoning_ru": "Текст содержит конкретную CVE, описание эксплуатации, список затронутых дистрибутивов и рекомендации по патчу. Это явно сигнал угрозы, относящийся к уязвимости, поэтому классификация как threat и high severity оправдана."
+      }
+    },
+    {
+      "thread": {
+        "source_id": "reddit_cybersecurity",
+        "source_label": "Reddit /r/cybersecurity",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "Defender Flagged DigiCert Root Certs as Malware",
+        "thread_url": "https://www.reddit.com/r/cybersecurity/comments/1t3do6j/defender_flagged_digicert_root_certs_as_malware/",
+        "author": "Big-Engineering-9365",
+        "published_at": "2026-05-04T10:24:45+00:00",
+        "body": "",
+        "context_messages": [],
+        "metadata": {
+          "subreddit": "cybersecurity",
+          "score": 1,
+          "num_comments": 0
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "malware"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.167
+      },
+      "status": "analyzed",
+      "normalized": {
+        "is_relevant": true,
+        "signal_kind": "incident",
+        "type": "threat",
+        "russian_title": "Microsoft Defender ошибочно пометил корневые сертификаты DigiCert как вредоносные",
+        "russian_summary": "В Microsoft Defender обнаружено ложное срабатывание, при котором корневые сертификаты DigiCert были помечены как вредоносные. Пользователи сообщают о появлении предупреждений при работе с этими сертификатами, но нет подтверждения реальной угрозы. В настоящее время рассматривается как ошибка в системе обнаружения.",
+        "russian_interpretation": "Для аналитика важно знать, что это ложное срабатывание, но оно может сбивать с толку и приводить к ложным инцидентам. Следует проверить, не влияет ли это на доверие к сертификатам и не создаёт ли риск отказа в обслуживании.",
+        "category": "Облачная безопасность",
+        "severity": "low",
+        "vulnerability_type": null,
+        "country": "Global",
+        "cve_mentions": [],
+        "vendor_candidates": [
+          "Microsoft",
+          "DigiCert"
+        ],
+        "product_candidates": [
+          "Microsoft Defender",
+          "Root Certificates"
+        ],
+        "evidence_tokens": [
+          "Defender",
+          "DigiCert",
+          "root certs",
+          "malware"
+        ],
+        "confidence": 0.7,
+        "reasoning_ru": "Пост содержит конкретный сигнал о ложном срабатывании Microsoft Defender, который пометил корневые сертификаты DigiCert как вредоносные. Это относится к инциденту, а не к общей дискуссии, и представляет потенциальную угрозу для доверия к сертификатам. Поэтому релевантно и классифицировано как threat с низкой тяжестью."
+      }
+    },
+    {
+      "thread": {
+        "source_id": "reddit_cybersecurity",
+        "source_label": "Reddit /r/cybersecurity",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "Another breach just hit Canvas (Instructure), and this one is worth a closer look.",
+        "thread_url": "https://www.reddit.com/r/cybersecurity/comments/1t3cra5/another_breach_just_hit_canvas_instructure_and/",
+        "author": "alexmemm",
+        "published_at": "2026-05-04T09:33:57+00:00",
+        "body": "Reported exposure includes: \\- Names, emails, student IDs \\- Private messages between students and professors \\- No passwords or financial data (so far) The more interesting risk isn’t the data alone, but the context. If attackers have: \\- real identities \\- institutional email addresses \\- actual message threads This creates a strong foundation for highly targeted phishing (e.g. replying within existing conversations or impersonating faculty with realistic context). This is the second incident in under a year, which raises questions about how EdTech platforms manage identity, access, and third-party integrations at scale.",
+        "context_messages": [],
+        "metadata": {
+          "subreddit": "cybersecurity",
+          "score": 3,
+          "num_comments": 1
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "breach",
+          "phishing"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.333
+      },
+      "status": "analyzed",
+      "normalized": {
+        "is_relevant": true,
+        "signal_kind": "incident",
+        "type": "threat",
+        "russian_title": "Новый взлом Canvas (Instructure) с риском целевого фишинга",
+        "russian_summary": "В результате взлома Canvas раскрыты имена, электронные адреса, ID студентов и частные сообщения между студентами и преподавателями. Хотя паролей и финансовых данных не найдено, наличие реальных идентификаторов и контекста повышает риск целевых фишинговых атак, где злоумышленники могут имитировать преподавателей.",
+        "russian_interpretation": "Для аналитика важно отметить, что раскрытые данные создают основу для высоко целевых фишинговых кампаний, а также указывают на слабости в управлении идентификацией и интеграциями EdTech-платформ.",
+        "category": "Утечки данных",
+        "severity": "high",
+        "vulnerability_type": null,
+        "country": "Global",
+        "cve_mentions": [],
+        "vendor_candidates": [
+          "Instructure"
+        ],
+        "product_candidates": [
+          "Canvas"
+        ],
+        "evidence_tokens": [
+          "breach",
+          "phishing"
+        ],
+        "confidence": 0.9,
+        "reasoning_ru": "Обсуждение описывает конкретный инцидент с раскрытием персональных данных и потенциальным фишингом, что соответствует критериям релевантного сигнала угрозы."
+      }
+    },
+    {
+      "thread": {
+        "source_id": "stackexchange_security",
+        "source_label": "Information Security Stack Exchange",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "how to check usages of a class method in open source code",
+        "thread_url": "https://security.stackexchange.com/questions/279220/how-to-check-usages-of-a-class-method-in-open-source-code",
+        "author": "anonymous",
+        "published_at": "2024-10-21T14:51:19+00:00",
+        "body": "I detected in a codeline usage of a bouncy castle that is vulnerable to the cve CVE-2023-33201. The CVE seems to come from the guilty class X509LDAPCertStoreSpi.java , and in specific the method search() . In the codeline I am testing, there is no direct usage of this class or method. Now I want to see if the method X509LDAPCertStoreSpi.search() is used somewhere inside the bouncy castle to see if it is indirectly called. Any idea how to achieve this? and is this the right way to analyze exploitability?",
+        "context_messages": [],
+        "metadata": {
+          "site": "security.stackexchange",
+          "tags": [
+            "vulnerability",
+            "cve",
+            "opensource"
+          ],
+          "score": 0,
+          "answer_count": 1,
+          "is_answered": false
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "cve-",
+          "exploit",
+          "rce"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.5
+      },
+      "status": "analyzed",
+      "normalized": {
+        "is_relevant": true,
+        "signal_kind": "discussion",
+        "type": "news",
+        "russian_title": "Проверка использования уязвимого метода в Bouncy Castle",
+        "russian_summary": "Пользователь обнаружил, что в библиотеке Bouncy Castle присутствует уязвимость CVE-2023-33201, связанная с классом X509LDAPCertStoreSpi и методом search(). Он хочет выяснить, вызывается ли этот метод косвенно в коде проекта, и как оценить эксплоатируемость.",
+        "russian_interpretation": "Вопрос касается конкретной уязвимости, её потенциального использования в проекте и методов анализа эксплоатируемости. Это сигнал для аналитика о необходимости проверить наличие вызовов метода и оценить риск.",
+        "category": "Уязвимости и эксплуатация",
+        "severity": null,
+        "vulnerability_type": null,
+        "country": "Global",
+        "cve_mentions": [
+          "CVE-2023-33201"
+        ],
+        "vendor_candidates": [],
+        "product_candidates": [
+          "Bouncy Castle"
+        ],
+        "evidence_tokens": [
+          "CVE-2023-33201",
+          "X509LDAPCertStoreSpi",
+          "search()"
+        ],
+        "confidence": 0.85,
+        "reasoning_ru": "Текст явно упоминает конкретную CVE и задает вопрос о проверке использования уязвимого метода, что соответствует критериям релевантного сигнала о уязвимости. Нет ложных срабатываний или общей теоретической дискуссии."
+      }
+    },
+    {
+      "thread": {
+        "source_id": "stackexchange_security",
+        "source_label": "Information Security Stack Exchange",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "How should a small security team prioritize CVEs when CVSS scores don't reflect real-world exploitability?",
+        "thread_url": "https://security.stackexchange.com/questions/286827/how-should-a-small-security-team-prioritize-cves-when-cvss-scores-dont-reflect",
+        "author": "defend.network",
+        "published_at": "2026-03-27T20:13:10+00:00",
+        "body": "We're a 3-person IT security team managing ~200 servers and endpoints. Our vulnerability scanner generates hundreds of findings per month. We currently prioritize by CVSS score, but we're finding this leads to poor outcomes: High CVSS vulnerabilities that have no known exploit in the wild consume our patching resources Medium CVSS vulnerabilities that are actively exploited (per CISA KEV) get delayed because they're \"medium\" We don't have budget for commercial threat intelligence to supplement CVSS with exploit probability data What free or low-cost methods exist to prioritize CVEs based on actual exploitability rather than theoretical CVSS severity? Specifically interested in: How to operationalize CISA KEV catalog into our patching workflow Whether EPSS (Exploit Prediction Scoring System) is mature enough to rely on How other small teams handle the gap between CVSS severity and real-world risk Any structured frameworks for risk-based vulnerability prioritization without commercial tools",
+        "context_messages": [],
+        "metadata": {
+          "site": "security.stackexchange",
+          "tags": [
+            "risk",
+            "cvss",
+            "vulnerability-management"
+          ],
+          "score": 0,
+          "answer_count": 0,
+          "is_answered": false
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "exploit",
+          "exploited",
+          "in the wild",
+          "rce",
+          "vulnerability"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.833
+      },
+      "status": "analyzed",
+      "normalized": {
+        "is_relevant": false,
+        "signal_kind": "other",
+        "type": "news",
+        "russian_title": null,
+        "russian_summary": null,
+        "russian_interpretation": null,
+        "category": null,
+        "severity": null,
+        "vulnerability_type": null,
+        "country": null,
+        "cve_mentions": [],
+        "vendor_candidates": [],
+        "product_candidates": [],
+        "evidence_tokens": [],
+        "confidence": 0.0,
+        "reasoning_ru": "Обсуждение методик приоритизации CVE, без конкретных уязвимостей, эксплойтов или инцидентов. Поэтому сигнал не релевантен."
+      }
+    }
+  ]
+}

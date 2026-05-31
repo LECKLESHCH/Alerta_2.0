@@ -1,71 +1,58 @@
 import React, { Component } from 'react';
-import { Form } from 'react-bootstrap';
+import { Form, Modal } from 'react-bootstrap';
 import { Bar, Line } from 'react-chartjs-2';
+import { fetchAllModelThreats } from '../../api/modelThreats';
+import { fetchObjects } from '../../api/objects';
+import { buildObjectThreatMatches, formatRiskPercent, getRiskLabel } from '../../utils/matchingMatrix';
+import { getThreatCategoryLabel } from '../../utils/threatLabels';
 
 const reportKinds = [
-  'Ежедневная аналитическая сводка',
-  'Недельный обзор угроз',
-  'Отчет по объекту КИИ',
-  'Экспресс-оценка инцидентной обстановки',
+  'Отчет за сутки',
+  'Отчет за период',
+  'Отчет по объекту',
 ];
 
-const audiences = [
-  'Руководитель SOC',
-  'Руководство организации',
-  'Техническая команда',
-  'Куратор объекта КИИ',
-];
+function safeDate(value) {
+  const date = new Date(value || 0);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
-const sectionCatalog = [
-  { key: 'summary', label: 'Резюме', hint: 'Короткий вывод для руководителя.' },
-  { key: 'landscape', label: 'Текущая обстановка', hint: 'Что происходит в потоке сигналов.' },
-  { key: 'priority', label: 'Приоритетные угрозы', hint: 'Критичное и high за период.' },
-  { key: 'ttp', label: 'TTP и паттерны', hint: 'Наблюдаемые техники и сценарии.' },
-  { key: 'sources', label: 'Источники и география', hint: 'Откуда пришли сигналы и где активность.' },
-  { key: 'recommendations', label: 'Рекомендации', hint: 'Что делать дальше.' },
-  { key: 'appendix', label: 'Приложение', hint: 'Список материалов и ссылки.' },
-];
+function normalizeSeverity(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'critical') return 'high';
+  if (normalized === 'high' || normalized === 'medium' || normalized === 'low') return normalized;
+  return 'low';
+}
 
-const previewMetrics = [
-  { label: 'Сигналов за окно', value: '47', accent: 'info' },
-  { label: 'High / critical', value: '12', accent: 'danger' },
-  { label: 'Доминирующая категория', value: 'Эксплуатация уязвимостей', accent: 'warning' },
-  { label: 'Основной источник', value: 'The Hacker News', accent: 'success' },
-];
+function severityWeight(value) {
+  const severity = normalizeSeverity(value);
+  if (severity === 'high') return 3;
+  if (severity === 'medium') return 2;
+  return 1;
+}
 
-const trendChartData = {
-  labels: ['01.04', '03.04', '05.04', '07.04', '09.04', '11.04', '13.04', '15.04'],
-  datasets: [
-    {
-      label: 'Все сигналы',
-      data: [14, 18, 17, 24, 22, 28, 26, 19],
-      borderColor: '#3366cc',
-      backgroundColor: 'rgba(51, 102, 204, 0.1)',
-      fill: false,
-      borderWidth: 2,
-    },
-    {
-      label: 'Угрозы',
-      data: [5, 7, 6, 11, 9, 12, 10, 8],
-      borderColor: '#d64545',
-      backgroundColor: 'rgba(214, 69, 69, 0.08)',
-      fill: false,
-      borderWidth: 2,
-    },
-  ],
-};
+function formatDayLabel(date) {
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+  }).format(date);
+}
 
-const categoryChartData = {
-  labels: ['Экспл. уязвимостей', 'Учетные данные', 'Supply chain', 'Фишинг'],
-  datasets: [
-    {
-      label: 'Количество материалов',
-      data: [12, 9, 5, 4],
-      backgroundColor: ['#3366cc', '#4f7fd8', '#7ba4ea', '#a8c3f5'],
-      borderWidth: 0,
-    },
-  ],
-};
+function clipText(value, maxLen = 140) {
+  const text = String(value || '').trim();
+  if (text.length <= maxLen) return text;
+  return `${text.slice(0, maxLen)}...`;
+}
+
+function getThreatDate(item) {
+  return safeDate(
+    item?.publishedAt ||
+      item?.published_at ||
+      item?.extracted_at ||
+      item?.createdAt ||
+      item?.updatedAt,
+  );
+}
 
 const chartOptions = {
   maintainAspectRatio: false,
@@ -114,24 +101,17 @@ const chartOptions = {
 
 const initialState = {
   reportKind: reportKinds[0],
-  audience: audiences[0],
-  periodMode: 'range',
   reportDate: '',
   dateFrom: '',
   dateTo: '',
-  title: 'Оперативная аналитическая сводка по киберугрозам',
-  subtitle: 'Контур мониторинга ALERTA 2.0',
-  objectName: 'Критический сегмент сети / производственный контур',
-  executiveSummary:
-    'За выбранный период поток материалов сохраняет повышенную плотность. Основной фокус смещён в сторону эксплуатации уязвимостей, компрометации учётных данных и связанных с ними цепочек первичного доступа.',
-  scope:
-    'В отчёт включаются публикации из доверенных источников, автоматически классифицированные сигналы, а также наблюдения, имеющие отношение к профилю защищаемого объекта.',
-  recommendations:
-    'Проверить актуальность компенсирующих мер, актуализировать список уязвимых сервисов, выделить high-priority материалы в отдельную оперативную выборку для ручной верификации.',
-  selectedSections: ['summary', 'landscape', 'priority', 'ttp', 'recommendations'],
+  objectName: '',
+  selectedObjectId: '',
+  objectItems: [],
+  threatItems: [],
+  isObjectPickerOpen: false,
+  isLoadingData: false,
+  dataError: '',
   includeCharts: true,
-  includeTable: true,
-  includeExecutiveBlock: true,
 };
 
 function formatDisplayDate(value) {
@@ -152,8 +132,11 @@ function formatDisplayDate(value) {
 }
 
 function buildPeriodLabel(state) {
-  if (state.periodMode === 'single') {
+  if (state.reportKind === 'Отчет за сутки') {
     return `Дата отчета: ${formatDisplayDate(state.reportDate)}`;
+  }
+  if (state.reportKind === 'Отчет по объекту') {
+    return 'Формат: по объекту';
   }
 
   const from = formatDisplayDate(state.dateFrom);
@@ -161,11 +144,6 @@ function buildPeriodLabel(state) {
   return `Период: ${from} - ${to}`;
 }
 
-function getSelectedSectionLabels(selectedSections) {
-  return sectionCatalog
-    .filter((item) => selectedSections.includes(item.key))
-    .map((item) => item.label);
-}
 
 function inlineComputedStyles(sourceNode, targetNode) {
   if (!(sourceNode instanceof Element) || !(targetNode instanceof Element)) {
@@ -335,6 +313,28 @@ export class Mdi extends Component {
 
   previewPageRef = React.createRef();
 
+  componentDidMount() {
+    this.loadReportData();
+  }
+
+  loadReportData = async () => {
+    this.setState({ isLoadingData: true, dataError: '' });
+    try {
+      const [threatItems, objectItems] = await Promise.all([
+        fetchAllModelThreats(),
+        fetchObjects(),
+      ]);
+      this.setState({
+        threatItems: Array.isArray(threatItems) ? threatItems : [],
+        objectItems: Array.isArray(objectItems) ? objectItems : [],
+      });
+    } catch (error) {
+      this.setState({ dataError: error?.message || 'Не удалось загрузить данные для отчета.' });
+    } finally {
+      this.setState({ isLoadingData: false });
+    }
+  };
+
   handleInputChange = (event) => {
     const { name, value, type, checked } = event.target;
     this.setState({
@@ -342,15 +342,213 @@ export class Mdi extends Component {
     });
   };
 
-  handleSectionToggle = (sectionKey) => {
-    this.setState((prevState) => {
-      const hasSection = prevState.selectedSections.includes(sectionKey);
-      return {
-        selectedSections: hasSection
-          ? prevState.selectedSections.filter((item) => item !== sectionKey)
-          : [...prevState.selectedSections, sectionKey],
-      };
+  openObjectPicker = () => {
+    this.setState({ isObjectPickerOpen: true });
+  };
+
+  closeObjectPicker = () => {
+    this.setState({ isObjectPickerOpen: false });
+  };
+
+  selectObject = (objectItem) => {
+    this.setState({
+      selectedObjectId: objectItem?._id || '',
+      objectName: objectItem?.name || '',
+      isObjectPickerOpen: false,
     });
+  };
+
+  getFilteredThreats = () => {
+    const { reportKind, reportDate, dateFrom, dateTo, threatItems } = this.state;
+    const safeItems = Array.isArray(threatItems) ? threatItems : [];
+
+    if (reportKind === 'Отчет по объекту') {
+      return safeItems;
+    }
+
+    if (reportKind === 'Отчет за сутки' && reportDate) {
+      const target = safeDate(reportDate);
+      if (!target) return [];
+      const start = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime();
+      const end = start + 24 * 60 * 60 * 1000;
+      return safeItems.filter((item) => {
+        const published = getThreatDate(item);
+        if (!published) return false;
+        const time = published.getTime();
+        return time >= start && time < end;
+      });
+    }
+
+    if (reportKind === 'Отчет за период') {
+      const from = dateFrom ? safeDate(dateFrom) : null;
+      const to = dateTo ? safeDate(dateTo) : null;
+      const start = from
+        ? new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime()
+        : Number.NEGATIVE_INFINITY;
+      const end = to
+        ? new Date(to.getFullYear(), to.getMonth(), to.getDate() + 1).getTime()
+        : Number.POSITIVE_INFINITY;
+      return safeItems.filter((item) => {
+        const published = getThreatDate(item);
+        if (!published) return false;
+        const time = published.getTime();
+        return time >= start && time < end;
+      });
+    }
+
+    return safeItems;
+  };
+
+  getSelectedObject = () => {
+    const { selectedObjectId, objectItems } = this.state;
+    return (Array.isArray(objectItems) ? objectItems : []).find((item) => String(item._id) === String(selectedObjectId));
+  };
+
+  buildPreviewData = () => {
+    const sourceItems = this.getFilteredThreats();
+    const high = sourceItems.filter((item) => normalizeSeverity(item.severity) === 'high').length;
+    const medium = sourceItems.filter((item) => normalizeSeverity(item.severity) === 'medium').length;
+    const low = sourceItems.filter((item) => normalizeSeverity(item.severity) === 'low').length;
+    const avgConfidence = sourceItems.length
+      ? sourceItems.reduce((sum, item) => sum + Number(item.llm_confidence || 0), 0) / sourceItems.length
+      : 0;
+
+    const byDay = new Map();
+    sourceItems.forEach((item) => {
+      const date = getThreatDate(item);
+      if (!date) return;
+      const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+      byDay.set(key, (byDay.get(key) || 0) + 1);
+    });
+    const dayPairs = Array.from(byDay.entries())
+      .sort((a, b) => (a[0] > b[0] ? 1 : -1))
+      .slice(-10);
+    const trendChartData = {
+      labels: dayPairs.map(([key]) => {
+        const [y, m, d] = key.split('-').map(Number);
+        return formatDayLabel(new Date(y, m, d));
+      }),
+      datasets: [
+        {
+          label: 'Угрозы',
+          data: dayPairs.map(([, count]) => count),
+          borderColor: '#0090e7',
+          backgroundColor: 'rgba(0, 144, 231, 0.16)',
+          fill: true,
+          tension: 0.25,
+        },
+      ],
+    };
+
+    const byCategory = new Map();
+    sourceItems.forEach((item) => {
+      const label = getThreatCategoryLabel(item.category || 'Не указана');
+      byCategory.set(label, (byCategory.get(label) || 0) + 1);
+    });
+    const categoryPairs = Array.from(byCategory.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 7);
+    const categoryChartData = {
+      labels: categoryPairs.map(([name]) => name),
+      datasets: [
+        {
+          label: 'Записей',
+          data: categoryPairs.map(([, count]) => count),
+          backgroundColor: '#00d25b',
+          borderColor: '#00b44d',
+          borderWidth: 1,
+        },
+      ],
+    };
+
+    return {
+      sourceItems,
+      previewMetrics: [
+        { label: 'Всего угроз', value: String(sourceItems.length), accent: 'primary' },
+        { label: 'High / Medium / Low', value: `${high} / ${medium} / ${low}`, accent: 'warning' },
+        { label: 'Средняя уверенность', value: `${(avgConfidence * 100).toFixed(1)}%`, accent: 'success' },
+      ],
+      trendChartData,
+      categoryChartData,
+      topThreats: [...sourceItems]
+        .sort((a, b) => {
+          const score = severityWeight(b.severity) - severityWeight(a.severity);
+          if (score !== 0) return score;
+          return Number(b.llm_confidence || 0) - Number(a.llm_confidence || 0);
+        })
+        .slice(0, 3),
+    };
+  };
+
+  buildObjectPreviewData = () => {
+    const selectedObject = this.getSelectedObject();
+    const allThreats = Array.isArray(this.state.threatItems) ? this.state.threatItems : [];
+    if (!selectedObject) {
+      return {
+        selectedObject: null,
+        matches: [],
+        topMatches: [],
+        trendChartData: { labels: [], datasets: [{ label: 'Риск', data: [] }] },
+        categoryChartData: { labels: [], datasets: [{ label: 'Совпадения', data: [] }] },
+      };
+    }
+
+    const matches = buildObjectThreatMatches(selectedObject, allThreats);
+    const topMatches = matches.slice(0, 3);
+
+    const levelCount = new Map();
+    topMatches.forEach((item) => {
+      const levels = Array.isArray(item.threat?.targeted_levels) ? item.threat.targeted_levels : [];
+      levels.forEach((level) => {
+        const key = String(level).toUpperCase();
+        levelCount.set(key, (levelCount.get(key) || 0) + 1);
+      });
+    });
+    const sortedLevels = Array.from(levelCount.entries()).sort((a, b) => a[0].localeCompare(b[0], 'ru'));
+
+    const byDay = new Map();
+    topMatches.forEach((item) => {
+      const date = getThreatDate(item.threat);
+      if (!date) return;
+      const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+      const prev = byDay.get(key) || 0;
+      byDay.set(key, prev + item.score);
+    });
+    const dayPairs = Array.from(byDay.entries()).sort((a, b) => (a[0] > b[0] ? 1 : -1)).slice(-10);
+
+    return {
+      selectedObject,
+      matches,
+      topMatches,
+      trendChartData: {
+        labels: dayPairs.map(([key]) => {
+          const [y, m, d] = key.split('-').map(Number);
+          return formatDayLabel(new Date(y, m, d));
+        }),
+        datasets: [
+          {
+            label: 'Суммарный риск',
+            data: dayPairs.map(([, value]) => Number(value.toFixed(2))),
+            borderColor: '#ffab00',
+            backgroundColor: 'rgba(255, 171, 0, 0.16)',
+            fill: true,
+            tension: 0.25,
+          },
+        ],
+      },
+      categoryChartData: {
+        labels: sortedLevels.map(([level]) => level),
+        datasets: [
+          {
+            label: 'Совпадения',
+            data: sortedLevels.map(([, count]) => count),
+            backgroundColor: '#fc424a',
+            borderColor: '#e2363e',
+            borderWidth: 1,
+          },
+        ],
+      },
+    };
   };
 
   exportPdf = async () => {
@@ -382,21 +580,29 @@ export class Mdi extends Component {
 
   renderPreview() {
     const {
-      title,
-      subtitle,
       reportKind,
-      audience,
       objectName,
-      executiveSummary,
-      scope,
-      recommendations,
-      selectedSections,
       includeCharts,
-      includeTable,
-      includeExecutiveBlock,
+      isLoadingData,
+      dataError,
     } = this.state;
 
-    const sectionLabels = getSelectedSectionLabels(selectedSections);
+    const isDaily = reportKind === 'Отчет за сутки';
+    const isPeriod = reportKind === 'Отчет за период';
+    const isObject = reportKind === 'Отчет по объекту';
+
+    const basicPreview = this.buildPreviewData();
+    const objectPreview = this.buildObjectPreviewData();
+    const title = isDaily
+      ? 'Суточный отчет по угрозам'
+      : isPeriod
+        ? 'Отчет по угрозам за период'
+        : `Отчет по объекту: ${objectName || 'не указан'}`;
+    const subtitle = isDaily
+      ? 'Сводка за выбранную дату'
+      : isPeriod
+        ? 'Динамика и приоритеты за выбранный интервал'
+        : 'Ключевые угрозы и выводы по объекту';
 
     return (
       <div className="alerta-report-preview">
@@ -407,31 +613,27 @@ export class Mdi extends Component {
               <h3>{title}</h3>
               <p>{subtitle}</p>
             </div>
-            <div className="alerta-report-preview__meta">
-              <div>
-                <span>Аудитория</span>
-                <strong>{audience}</strong>
-              </div>
-              <div>
-                <span>Объект</span>
-                <strong>{objectName || 'Не указан'}</strong>
-              </div>
-              <div>
-                <span>Окно наблюдения</span>
-                <strong>{buildPeriodLabel(this.state)}</strong>
-              </div>
-            </div>
           </div>
 
-          {includeExecutiveBlock ? (
-            <div className="alerta-report-preview__summary">
-              <h5>Ключевой вывод</h5>
-              <p>{executiveSummary}</p>
-            </div>
-          ) : null}
+          {isLoadingData ? <p>Загрузка данных...</p> : null}
+          {dataError ? <p className="text-danger">{dataError}</p> : null}
 
           <div className="alerta-report-preview__metrics">
-            {previewMetrics.map((metric) => (
+            {(isObject
+              ? [
+                  { label: 'Всего совпадений', value: String(objectPreview.matches.length), accent: 'primary' },
+                  {
+                    label: 'Топ риск',
+                    value: objectPreview.topMatches[0] ? formatRiskPercent(objectPreview.topMatches[0].score) : '0%',
+                    accent: 'warning',
+                  },
+                  {
+                    label: 'Уровень',
+                    value: objectPreview.topMatches[0] ? getRiskLabel(objectPreview.topMatches[0].level) : 'Фоновый',
+                    accent: 'success',
+                  },
+                ]
+              : basicPreview.previewMetrics).map((metric) => (
               <div key={metric.label} className={`alerta-report-preview__metric alerta-report-preview__metric--${metric.accent}`}>
                 <span>{metric.label}</span>
                 <strong>{metric.value}</strong>
@@ -439,86 +641,72 @@ export class Mdi extends Component {
             ))}
           </div>
 
-          <ReportSection title="Состав документа">
-            <div className="alerta-report-preview__chips">
-              {sectionLabels.length ? (
-                sectionLabels.map((label) => <span key={label}>{label}</span>)
-              ) : (
-                <span>Секции пока не выбраны</span>
-              )}
+          <ReportSection title={isObject ? 'Топ 3 опасных угроз для объекта' : 'Топ 3 приоритетные угрозы'}>
+            <div className="alerta-report-preview__table">
+              <div className="alerta-report-preview__table-row alerta-report-preview__table-row--head">
+                <span>Угроза</span>
+                <span>Уровень</span>
+                <span>Краткий вывод</span>
+              </div>
+              {(isObject ? objectPreview.topMatches : basicPreview.topThreats).map((item, index) => {
+                const threat = isObject ? item.threat : item;
+                const level = isObject ? item.level : normalizeSeverity(threat.severity);
+                const short =
+                  isObject
+                    ? clipText((item.reasons || []).join('; ') || threat.interpretation_summary || threat.reasoning)
+                    : clipText(threat.interpretation_summary || threat.reasoning || threat.threat_summary);
+                return (
+                  <div className="alerta-report-preview__table-row" key={`${threat?._id || threat?.title || index}`}>
+                    <span>{clipText(threat?.title || 'Без названия', 90)}</span>
+                    <span>{isObject ? `${getRiskLabel(level)} (${formatRiskPercent(item.score)})` : String(level).toUpperCase()}</span>
+                    <span>{short || 'Без комментария.'}</span>
+                  </div>
+                );
+              })}
             </div>
           </ReportSection>
 
-          {selectedSections.includes('summary') ? (
-            <ReportSection title="Резюме">
-              <p>{executiveSummary}</p>
-            </ReportSection>
-          ) : null}
-
-          {selectedSections.includes('landscape') ? (
-            <ReportSection title="Текущая обстановка">
-              <p>{scope}</p>
-              {includeCharts ? (
-                <div className="alerta-report-preview__chart-block">
-                  <div className="alerta-report-preview__chart-card">
-                    <h6>Динамика сигналов</h6>
-                    <div className="alerta-report-preview__chart-canvas">
-                      <Line data={trendChartData} options={chartOptions} />
-                    </div>
-                  </div>
-                  <div className="alerta-report-preview__chart-card">
-                    <h6>Распределение по категориям</h6>
-                    <div className="alerta-report-preview__chart-canvas">
-                      <Bar data={categoryChartData} options={chartOptions} />
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-            </ReportSection>
-          ) : null}
-
-          {selectedSections.includes('priority') && includeTable ? (
-            <ReportSection title="Приоритетные угрозы">
-              <div className="alerta-report-preview__table">
-                <div className="alerta-report-preview__table-row alerta-report-preview__table-row--head">
-                  <span>Категория</span>
-                  <span>Severity</span>
-                  <span>Фокус</span>
-                </div>
-                <div className="alerta-report-preview__table-row">
-                  <span>Эксплуатация уязвимостей</span>
-                  <span>critical</span>
-                  <span>Интернет-экспонированные сервисы</span>
-                </div>
-                <div className="alerta-report-preview__table-row">
-                  <span>Компрометация учетных данных</span>
-                  <span>high</span>
-                  <span>Удалённый доступ и подрядчики</span>
-                </div>
-                <div className="alerta-report-preview__table-row">
-                  <span>Supply chain</span>
-                  <span>medium</span>
-                  <span>Зависимости и обновления</span>
-                </div>
+          {!isObject ? (
+            <ReportSection title={isDaily ? 'Суточные показатели' : 'Показатели за период'}>
+              <div className="alerta-report-preview__chips">
+                <span>Количество собранных угроз: 47</span>
+                <span>Разбиение по уровням: {basicPreview.previewMetrics[1]?.value || '0 / 0 / 0'}</span>
+                <span>Топ классов: {basicPreview.categoryChartData.labels.slice(0, 3).join(', ') || 'нет данных'}</span>
               </div>
             </ReportSection>
           ) : null}
 
-          {selectedSections.includes('ttp') ? (
-            <ReportSection title="TTP и паттерны">
+          {isObject ? (
+            <ReportSection title="Выводы по объекту">
               <ul className="alerta-report-preview__list">
-                <li>Первичный доступ через эксплуатацию публично доступных сервисов.</li>
-                <li>Повторяющиеся сценарии закрепления через легитимные учетные записи.</li>
-                <li>Рост интереса к боковому перемещению и обходу базовых защитных мер.</li>
+                {(objectPreview.topMatches[0]?.reasons || []).map((reason, idx) => (
+                  <li key={`reason-${idx}`}>{reason}</li>
+                ))}
+                {!objectPreview.topMatches[0]?.reasons?.length ? <li>Выберите объект, чтобы увидеть конкретные выводы по рискам.</li> : null}
               </ul>
             </ReportSection>
           ) : null}
 
-          {selectedSections.includes('recommendations') ? (
-            <ReportSection title="Рекомендации">
-              <p>{recommendations}</p>
-            </ReportSection>
-          ) : null}
+          <ReportSection title="Графики">
+            {includeCharts ? (
+              <div className="alerta-report-preview__chart-block">
+                <div className="alerta-report-preview__chart-card">
+                  <h6>{isObject ? 'Динамика угроз для объекта' : 'Динамика угроз'}</h6>
+                  <div className="alerta-report-preview__chart-canvas">
+                    <Line data={isObject ? objectPreview.trendChartData : basicPreview.trendChartData} options={chartOptions} />
+                  </div>
+                </div>
+                <div className="alerta-report-preview__chart-card">
+                  <h6>{isObject ? 'Распределение рисков по категориям' : 'Распределение по категориям'}</h6>
+                  <div className="alerta-report-preview__chart-canvas">
+                    <Bar data={isObject ? objectPreview.categoryChartData : basicPreview.categoryChartData} options={chartOptions} />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="mb-0">Графики отключены в параметрах отчета.</p>
+            )}
+          </ReportSection>
         </div>
       </div>
     );
@@ -527,23 +715,26 @@ export class Mdi extends Component {
   render() {
     const {
       reportKind,
-      audience,
-      periodMode,
       reportDate,
       dateFrom,
       dateTo,
-      title,
-      subtitle,
       objectName,
-      executiveSummary,
-      scope,
-      recommendations,
-      selectedSections,
+      objectItems,
+      isObjectPickerOpen,
+      selectedObjectId,
       includeCharts,
-      includeTable,
-      includeExecutiveBlock,
       isExportingPdf,
     } = this.state;
+
+    const isDaily = reportKind === 'Отчет за сутки';
+    const isPeriod = reportKind === 'Отчет за период';
+    const isObject = reportKind === 'Отчет по объекту';
+
+    const controlStyle = {
+      color: '#ffffff',
+      backgroundColor: '#191c24',
+      borderColor: '#2c3448',
+    };
 
     return (
       <div className="alerta-report-builder-page">
@@ -557,239 +748,19 @@ export class Mdi extends Component {
                 </a>
               </li>
               <li className="breadcrumb-item active" aria-current="page">
-                Конструктор документа
+                Шаблон документа
               </li>
             </ol>
           </nav>
         </div>
 
-        <div className="card grid-margin">
-          <div className="card-body alerta-report-builder-hero">
-            <div>
-              <p className="alerta-report-builder-hero__kicker">Рабочий модуль</p>
-              <h4 className="card-title mb-2">Конструктор аналитического отчета</h4>
-              <p className="text-muted mb-0">
-                Здесь можно собрать структуру будущего документа: выбрать окно наблюдения,
-                определить наполнение и сразу увидеть, как это будет выглядеть на выходе.
-              </p>
-            </div>
-            <div className="alerta-report-builder-hero__status">
-              <span>Черновик</span>
-              <strong>Предпросмотр обновляется на лету</strong>
-            </div>
-          </div>
-        </div>
-
         <div className="row">
-          <div className="col-xl-5 grid-margin stretch-card">
-            <div className="card">
-              <div className="card-body">
-                <h4 className="card-title">Параметры отчета</h4>
-
-                <Form.Group>
-                  <label htmlFor="reportKind">Тип документа</label>
-                  <select
-                    className="form-control"
-                    id="reportKind"
-                    name="reportKind"
-                    value={reportKind}
-                    onChange={this.handleInputChange}
-                  >
-                    {reportKinds.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
-                </Form.Group>
-
-                <Form.Group>
-                  <label htmlFor="audience">Аудитория</label>
-                  <select
-                    className="form-control"
-                    id="audience"
-                    name="audience"
-                    value={audience}
-                    onChange={this.handleInputChange}
-                  >
-                    {audiences.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
-                </Form.Group>
-
-                <div className="alerta-report-builder-switches">
-                  <label className={`alerta-report-builder-switch ${periodMode === 'single' ? 'is-active' : ''}`}>
-                    <input
-                      type="radio"
-                      name="periodMode"
-                      value="single"
-                      checked={periodMode === 'single'}
-                      onChange={this.handleInputChange}
-                    />
-                    <span>Одна дата</span>
-                  </label>
-                  <label className={`alerta-report-builder-switch ${periodMode === 'range' ? 'is-active' : ''}`}>
-                    <input
-                      type="radio"
-                      name="periodMode"
-                      value="range"
-                      checked={periodMode === 'range'}
-                      onChange={this.handleInputChange}
-                    />
-                    <span>Период</span>
-                  </label>
-                </div>
-
-                {periodMode === 'single' ? (
-                  <Form.Group>
-                    <label htmlFor="reportDate">Дата отчета</label>
-                    <Form.Control
-                      type="date"
-                      id="reportDate"
-                      name="reportDate"
-                      value={reportDate}
-                      onChange={this.handleInputChange}
-                    />
-                  </Form.Group>
-                ) : (
-                  <div className="row">
-                    <div className="col-md-6">
-                      <Form.Group>
-                        <label htmlFor="dateFrom">С даты</label>
-                        <Form.Control
-                          type="date"
-                          id="dateFrom"
-                          name="dateFrom"
-                          value={dateFrom}
-                          onChange={this.handleInputChange}
-                        />
-                      </Form.Group>
-                    </div>
-                    <div className="col-md-6">
-                      <Form.Group>
-                        <label htmlFor="dateTo">По дату</label>
-                        <Form.Control
-                          type="date"
-                          id="dateTo"
-                          name="dateTo"
-                          value={dateTo}
-                          onChange={this.handleInputChange}
-                        />
-                      </Form.Group>
-                    </div>
-                  </div>
-                )}
-
-                <Form.Group>
-                  <label htmlFor="title">Заголовок</label>
-                  <Form.Control type="text" id="title" name="title" value={title} onChange={this.handleInputChange} />
-                </Form.Group>
-
-                <Form.Group>
-                  <label htmlFor="subtitle">Подзаголовок</label>
-                  <Form.Control type="text" id="subtitle" name="subtitle" value={subtitle} onChange={this.handleInputChange} />
-                </Form.Group>
-
-                <Form.Group>
-                  <label htmlFor="objectName">Объект / контур</label>
-                  <Form.Control type="text" id="objectName" name="objectName" value={objectName} onChange={this.handleInputChange} />
-                </Form.Group>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-xl-7 grid-margin stretch-card">
-            <div className="card">
-              <div className="card-body">
-                <h4 className="card-title">Наполнение и редактор</h4>
-
-                <div className="alerta-report-builder-sections">
-                  {sectionCatalog.map((section) => (
-                    <button
-                      type="button"
-                      key={section.key}
-                      className={`alerta-report-builder-section ${selectedSections.includes(section.key) ? 'is-selected' : ''}`}
-                      onClick={() => this.handleSectionToggle(section.key)}
-                    >
-                      <strong>{section.label}</strong>
-                      <span>{section.hint}</span>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="row mt-4">
-                  <div className="col-md-4">
-                    <label className="alerta-report-builder-check">
-                      <input type="checkbox" name="includeExecutiveBlock" checked={includeExecutiveBlock} onChange={this.handleInputChange} />
-                      <span>Executive-блок сверху</span>
-                    </label>
-                  </div>
-                  <div className="col-md-4">
-                    <label className="alerta-report-builder-check">
-                      <input type="checkbox" name="includeCharts" checked={includeCharts} onChange={this.handleInputChange} />
-                      <span>Вставить графический блок</span>
-                    </label>
-                  </div>
-                  <div className="col-md-4">
-                    <label className="alerta-report-builder-check">
-                      <input type="checkbox" name="includeTable" checked={includeTable} onChange={this.handleInputChange} />
-                      <span>Добавить табличный фрагмент</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="row mt-3">
-                  <div className="col-12">
-                    <Form.Group>
-                      <label htmlFor="executiveSummary">Резюме / вводный абзац</label>
-                      <Form.Control
-                        as="textarea"
-                        rows={4}
-                        id="executiveSummary"
-                        name="executiveSummary"
-                        value={executiveSummary}
-                        onChange={this.handleInputChange}
-                      />
-                    </Form.Group>
-                  </div>
-                  <div className="col-12">
-                    <Form.Group>
-                      <label htmlFor="scope">Описание охвата</label>
-                      <Form.Control as="textarea" rows={4} id="scope" name="scope" value={scope} onChange={this.handleInputChange} />
-                    </Form.Group>
-                  </div>
-                  <div className="col-12">
-                    <Form.Group className="mb-0">
-                      <label htmlFor="recommendations">Выводы и рекомендации</label>
-                      <Form.Control
-                        as="textarea"
-                        rows={4}
-                        id="recommendations"
-                        name="recommendations"
-                        value={recommendations}
-                        onChange={this.handleInputChange}
-                      />
-                    </Form.Group>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="row">
-          <div className="col-12 grid-margin stretch-card">
+          <div className="col-xl-8 grid-margin stretch-card">
             <div className="card">
               <div className="card-body">
                 <div className="d-flex flex-wrap justify-content-between align-items-start mb-3">
                   <div>
                     <h4 className="card-title mb-1">Предпросмотр документа</h4>
-                    <p className="text-muted mb-0">
-                      Макет ниже нужен для визуальной проверки состава, иерархии и общей посадки будущего отчета.
-                    </p>
                   </div>
                   <div className="alerta-report-builder-actions">
                     <button
@@ -806,7 +777,130 @@ export class Mdi extends Component {
               </div>
             </div>
           </div>
+
+          <div className="col-xl-4 grid-margin stretch-card">
+            <div className="card">
+              <div className="card-body">
+                <h4 className="card-title">Параметры отчета</h4>
+
+                <Form.Group>
+                  <label htmlFor="reportKind">Тип документа</label>
+                  <select
+                    className="form-control"
+                    id="reportKind"
+                    name="reportKind"
+                    value={reportKind}
+                    onChange={this.handleInputChange}
+                    style={controlStyle}
+                  >
+                    {reportKinds.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </Form.Group>
+
+                {isDaily ? (
+                  <Form.Group>
+                    <label htmlFor="reportDate">Дата</label>
+                    <Form.Control
+                      type="date"
+                      id="reportDate"
+                      name="reportDate"
+                      value={reportDate}
+                      onChange={this.handleInputChange}
+                      style={controlStyle}
+                    />
+                  </Form.Group>
+                ) : null}
+
+                {isPeriod ? (
+                  <div className="row">
+                    <div className="col-md-6">
+                      <Form.Group>
+                        <label htmlFor="dateFrom">С даты</label>
+                        <Form.Control
+                          type="date"
+                          id="dateFrom"
+                          name="dateFrom"
+                          value={dateFrom}
+                          onChange={this.handleInputChange}
+                          style={controlStyle}
+                        />
+                      </Form.Group>
+                    </div>
+                    <div className="col-md-6">
+                      <Form.Group>
+                        <label htmlFor="dateTo">По дату</label>
+                        <Form.Control
+                          type="date"
+                          id="dateTo"
+                          name="dateTo"
+                          value={dateTo}
+                          onChange={this.handleInputChange}
+                          style={controlStyle}
+                        />
+                      </Form.Group>
+                    </div>
+                  </div>
+                ) : null}
+
+                <Form.Group>
+                  <label htmlFor="objectName">Объект / контур</label>
+                  <Form.Control
+                    type="text"
+                    id="objectName"
+                    name="objectName"
+                    value={objectName}
+                    onChange={this.handleInputChange}
+                    style={controlStyle}
+                    disabled
+                  />
+                </Form.Group>
+
+                {isObject ? (
+                  <button type="button" className="btn btn-outline-light btn-sm mb-2" onClick={this.openObjectPicker}>
+                    Выбрать объект
+                  </button>
+                ) : null}
+
+                <label className="alerta-report-builder-check mt-3">
+                  <input type="checkbox" name="includeCharts" checked={includeCharts} onChange={this.handleInputChange} />
+                  <span>Показывать графики в шаблоне</span>
+                </label>
+              </div>
+            </div>
+          </div>
         </div>
+
+        <Modal show={isObjectPickerOpen} onHide={this.closeObjectPicker} centered>
+          <Modal.Header closeButton>
+            <Modal.Title>Выберите объект для отчета</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {!objectItems.length ? <p className="mb-0">Список объектов пуст.</p> : null}
+            <div className="list-group">
+              {objectItems.map((item) => {
+                const active = String(selectedObjectId) === String(item._id);
+                return (
+                  <button
+                    type="button"
+                    key={item._id}
+                    className={`list-group-item list-group-item-action${active ? ' active' : ''}`}
+                    onClick={() => this.selectObject(item)}
+                  >
+                    <div className="d-flex justify-content-between align-items-start">
+                      <strong>{item.name || 'Без имени'}</strong>
+                      <span className="small">{item.region || 'Регион не указан'}</span>
+                    </div>
+                    <div className="small">{clipText(item.comments || item.industry || item.objectType || '', 90)}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </Modal.Body>
+        </Modal>
       </div>
     );
   }

@@ -19,7 +19,7 @@ export class ThreatPredictorService implements OnModuleInit {
   private qdrant: QdrantClient;
   private embeddings: OpenAIEmbeddings;
   private llm: ChatOpenAI;
-  private readonly collectionName = 'articles';
+  private readonly collectionName = 'model_threat_web';
   private readonly embeddingModel = 'text-embedding-3-small';
   private readonly embeddingSize = 1536;
 

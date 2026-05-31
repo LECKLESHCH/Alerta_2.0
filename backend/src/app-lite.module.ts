@@ -7,6 +7,8 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ArticleModule } from './article/article.module';
 import { ObjectModule } from './objects/object.module';
+import { ModelObjectModule } from './model-objects/model-object.module';
+import { ModelThreatModule } from './model-threats/model-threat.module';
 import { ReferenceIntelModule } from './reference-intel/reference-intel.module';
 
 @Module({
@@ -27,6 +29,8 @@ import { ReferenceIntelModule } from './reference-intel/reference-intel.module';
     AuthModule,
     ArticleModule,
     ObjectModule,
+    ModelObjectModule,
+    ModelThreatModule,
     ReferenceIntelModule,
   ],
   controllers: [AppController],

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Trans } from 'react-i18next';
 import { clearAuthSession, getStoredUser } from '../../auth/storage';
 import { fetchCrawlLogs, fetchCrawlStatus, startCrawl } from '../../api/crawler';
+import { rebuildModelThreatsAll, rebuildModelThreatsBySource } from '../../api/modelThreats';
 
 const REAL_CRAWL_SCOPES = new Set(['all', 'sites', 'telegram', 'forums']);
 
@@ -27,23 +28,48 @@ class Navbar extends Component {
     crawlScope: null,
     crawlStatus: null,
     isLogsModalOpen: false,
+    isSettingsModalOpen: false,
+    isCrawlerConfigOpen: false,
+    isLightTheme: false,
+    uiDensityCompact: false,
+    autoOpenLogsOnStart: true,
+    notificationsEnabled: true,
     isLaunchingCrawl: false,
+    threatModelStatus: null,
+    pendingThreatRebuildScope: null,
     logLines: [],
     logError: null,
+    crawlConfig: {
+      sites: true,
+      telegram: true,
+      forums: true,
+      autoScheduleEnabled: false,
+      intervalHours: 6,
+      rebuildThreatModelAfterCrawl: true,
+      onlyIfIdle: true,
+    },
   };
 
   componentDidMount() {
+    this.loadThemePreference();
+    this.loadUiPreferences();
+    this.loadCrawlConfig();
     this.refreshCrawlState();
+    this.syncCrawlScheduler();
   }
 
   componentDidUpdate(prevProps, prevState) {
-    if (prevState.isLogsModalOpen !== this.state.isLogsModalOpen) {
-      this.syncBodyScrollLock(this.state.isLogsModalOpen);
+    const wasAnyModalOpen = prevState.isLogsModalOpen || prevState.isSettingsModalOpen;
+    const isAnyModalOpen = this.state.isLogsModalOpen || this.state.isSettingsModalOpen;
+
+    if (wasAnyModalOpen !== isAnyModalOpen) {
+      this.syncBodyScrollLock(isAnyModalOpen);
     }
   }
 
   componentWillUnmount() {
     this.stopLogPolling();
+    this.stopAutoSchedule();
     this.syncBodyScrollLock(false);
   }
 
@@ -51,6 +77,183 @@ class Navbar extends Component {
     event.preventDefault();
     clearAuthSession();
     window.location.href = '/user-pages/login-1';
+  };
+
+  loadThemePreference = () => {
+    const storedTheme = window.localStorage.getItem('alerta-theme');
+    const isLightTheme = storedTheme === 'light';
+    this.applyTheme(isLightTheme);
+    this.setState({ isLightTheme });
+  };
+
+  applyTheme = (isLightTheme) => {
+    document.body.classList.toggle('theme-light', isLightTheme);
+    window.localStorage.setItem('alerta-theme', isLightTheme ? 'light' : 'dark');
+  };
+
+  handleThemeToggle = (event) => {
+    const isLightTheme = event.target.checked;
+    this.setState({ isLightTheme });
+    this.applyTheme(isLightTheme);
+  };
+
+  loadUiPreferences = () => {
+    const uiDensityCompact = window.localStorage.getItem('alerta-ui-density') === 'compact';
+    const autoOpenLogsOnStart = window.localStorage.getItem('alerta-auto-open-logs') !== 'off';
+    const notificationsEnabled = window.localStorage.getItem('alerta-notifications') !== 'off';
+    this.setState({
+      uiDensityCompact,
+      autoOpenLogsOnStart,
+      notificationsEnabled,
+    });
+    document.body.classList.toggle('ui-density-compact', uiDensityCompact);
+  };
+
+  handleUiDensityToggle = (event) => {
+    const enabled = event.target.checked;
+    this.setState({ uiDensityCompact: enabled });
+    window.localStorage.setItem('alerta-ui-density', enabled ? 'compact' : 'regular');
+    document.body.classList.toggle('ui-density-compact', enabled);
+  };
+
+  handleAutoOpenLogsToggle = (event) => {
+    const enabled = event.target.checked;
+    this.setState({ autoOpenLogsOnStart: enabled });
+    window.localStorage.setItem('alerta-auto-open-logs', enabled ? 'on' : 'off');
+  };
+
+  handleNotificationsToggle = (event) => {
+    const enabled = event.target.checked;
+    this.setState({ notificationsEnabled: enabled });
+    window.localStorage.setItem('alerta-notifications', enabled ? 'on' : 'off');
+  };
+
+  handleOpenSettings = (event) => {
+    event.preventDefault();
+    this.setState({ isSettingsModalOpen: true });
+  };
+
+  handleCloseSettings = () => {
+    this.setState({ isSettingsModalOpen: false });
+  };
+
+  handleOpenCrawlerConfig = (event) => {
+    event.preventDefault();
+    this.setState({ isCrawlerConfigOpen: true });
+  };
+
+  handleCloseCrawlerConfig = () => {
+    this.setState({ isCrawlerConfigOpen: false });
+  };
+
+  loadCrawlConfig = () => {
+    const raw = window.localStorage.getItem('alerta-crawl-config');
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      this.setState(
+        (prevState) => ({
+          crawlConfig: {
+            ...prevState.crawlConfig,
+            ...parsed,
+          },
+        }),
+        this.syncCrawlScheduler,
+      );
+    } catch (error) {
+      // ignore broken storage value
+    }
+  };
+
+  saveCrawlConfig = (nextConfig) => {
+    window.localStorage.setItem('alerta-crawl-config', JSON.stringify(nextConfig));
+  };
+
+  handleCrawlConfigChange = (field, value) => {
+    this.setState(
+      (prevState) => ({
+        crawlConfig: {
+          ...prevState.crawlConfig,
+          [field]: value,
+        },
+      }),
+      () => {
+        this.saveCrawlConfig(this.state.crawlConfig);
+        this.syncCrawlScheduler();
+      },
+    );
+  };
+
+  getConfiguredScopes = () => {
+    const { sites, telegram, forums } = this.state.crawlConfig;
+    const scopes = [];
+    if (sites) scopes.push('sites');
+    if (telegram) scopes.push('telegram');
+    if (forums) scopes.push('forums');
+    return scopes;
+  };
+
+  resolveQueueFromScopes = (scopes) => {
+    const uniqueScopes = Array.from(new Set(scopes.filter((scope) => REAL_CRAWL_SCOPES.has(scope))));
+    if (
+      uniqueScopes.length === 3 &&
+      uniqueScopes.includes('sites') &&
+      uniqueScopes.includes('telegram') &&
+      uniqueScopes.includes('forums')
+    ) {
+      return ['all'];
+    }
+    return uniqueScopes;
+  };
+
+  runConfiguredCrawl = async (reason = 'manual') => {
+    const selectedScopes = this.resolveQueueFromScopes(this.getConfiguredScopes());
+    if (!selectedScopes.length) {
+      this.setState((prevState) => ({
+        logLines: [
+          ...prevState.logLines,
+          `[${new Date().toLocaleTimeString('ru-RU')}] Конфигуратор: не выбраны источники.`,
+        ],
+        isLogsModalOpen: true,
+      }));
+      return;
+    }
+
+    this.pendingScopeQueue = selectedScopes.slice(1);
+    await this.handleStartCrawl(selectedScopes[0], reason);
+  };
+
+  startNextQueuedScope = async () => {
+    if (this.state.crawlRunning || this.state.isLaunchingCrawl) {
+      return;
+    }
+    if (!Array.isArray(this.pendingScopeQueue) || this.pendingScopeQueue.length === 0) {
+      return;
+    }
+    const nextScope = this.pendingScopeQueue.shift();
+    if (!nextScope) return;
+    await this.handleStartCrawl(nextScope, 'queue');
+  };
+
+  stopAutoSchedule = () => {
+    if (this.autoScheduleTimer) {
+      window.clearInterval(this.autoScheduleTimer);
+      this.autoScheduleTimer = null;
+    }
+  };
+
+  syncCrawlScheduler = () => {
+    this.stopAutoSchedule();
+    const { autoScheduleEnabled, intervalHours } = this.state.crawlConfig;
+    if (!autoScheduleEnabled) return;
+    const intervalMs = Math.max(1, Number(intervalHours) || 1) * 60 * 60 * 1000;
+    this.autoScheduleTimer = window.setInterval(() => {
+      const { onlyIfIdle } = this.state.crawlConfig;
+      if (onlyIfIdle && (this.state.crawlRunning || this.state.isLaunchingCrawl)) {
+        return;
+      }
+      this.runConfiguredCrawl('auto');
+    }, intervalMs);
   };
 
   toggleOffcanvas() {
@@ -122,13 +325,25 @@ class Navbar extends Component {
     try {
       const status = await fetchCrawlStatus();
       const isRealScope = REAL_CRAWL_SCOPES.has(status?.scope);
+      const wasRunning = this.lastCrawlRunning === true;
+      const isRunningNow = Boolean(status?.running);
 
       this.setState((prevState) => ({
-        crawlRunning: Boolean(status?.running),
+        crawlRunning: isRunningNow,
         crawlScope: status?.scope || prevState.crawlScope,
         crawlStatus: status?.status || null,
         logError: isRealScope ? null : prevState.logError,
       }));
+      this.lastCrawlRunning = isRunningNow;
+
+      if (wasRunning && !isRunningNow) {
+        if (this.state.crawlConfig.rebuildThreatModelAfterCrawl) {
+          this.triggerThreatModelRebuild();
+        } else {
+          this.setState({ pendingThreatRebuildScope: null, threatModelStatus: null });
+        }
+        this.startNextQueuedScope();
+      }
 
       if (isRealScope || this.state.isLogsModalOpen) {
         await this.refreshLogs();
@@ -141,6 +356,50 @@ class Navbar extends Component {
       this.setState({
         logError: error.message || 'Не удалось получить статус парсинга',
       });
+    }
+  };
+
+  triggerThreatModelRebuild = async () => {
+    const scope = this.state.pendingThreatRebuildScope;
+    if (!scope || !REAL_CRAWL_SCOPES.has(scope)) {
+      return;
+    }
+
+    this.setState((prevState) => ({
+      threatModelStatus: 'running',
+      logLines: [
+        ...prevState.logLines,
+        `[${new Date().toLocaleTimeString('ru-RU')}] Запускаем обновление model_threat...`,
+      ],
+    }));
+
+    try {
+      if (scope === 'all') {
+        await rebuildModelThreatsAll(120);
+      } else {
+        const sourceMap = { sites: 'web', telegram: 'tg', forums: 'forum' };
+        await rebuildModelThreatsBySource(sourceMap[scope], 120);
+      }
+
+      this.setState((prevState) => ({
+        threatModelStatus: 'done',
+        pendingThreatRebuildScope: null,
+        logLines: [
+          ...prevState.logLines,
+          `[${new Date().toLocaleTimeString('ru-RU')}] model_threat успешно обновлен.`,
+        ],
+      }));
+    } catch (error) {
+      this.setState((prevState) => ({
+        threatModelStatus: 'error',
+        pendingThreatRebuildScope: null,
+        logLines: [
+          ...prevState.logLines,
+          `[${new Date().toLocaleTimeString('ru-RU')}] Ошибка обновления model_threat: ${
+            error.message || 'неизвестная ошибка'
+          }`,
+        ],
+      }));
     }
   };
 
@@ -194,8 +453,25 @@ class Navbar extends Component {
     }
   };
 
-  handleStartCrawl = async (scope) => {
+  handleStartCrawl = async (scope, reason = 'manual') => {
     const isRealScope = REAL_CRAWL_SCOPES.has(scope);
+    const { crawlRunning, crawlScope } = this.state;
+
+    if (isRealScope && crawlRunning) {
+      const runningScopeLabel = this.getScopeLabel(crawlScope);
+      this.setState((prevState) => ({
+        isLogsModalOpen: true,
+        crawlStatus: 'already_running',
+        logLines: [
+          ...prevState.logLines,
+          `[${new Date().toLocaleTimeString('ru-RU')}] Новый запуск "${this.getScopeLabel(
+            scope,
+          )}" отклонен: уже выполняется "${runningScopeLabel}".`,
+        ],
+      }));
+      this.startLogPolling();
+      return;
+    }
 
     if (!isRealScope) {
       this.setState({
@@ -211,21 +487,33 @@ class Navbar extends Component {
 
     this.setState({
       isLaunchingCrawl: true,
-      isLogsModalOpen: true,
+      isLogsModalOpen: this.state.autoOpenLogsOnStart,
       crawlScope: scope,
       crawlStatus: null,
+      threatModelStatus: 'waiting',
+      pendingThreatRebuildScope: null,
       logError: null,
       logLines: [
-        `[${new Date().toLocaleTimeString('ru-RU')}] Отправляем команду на ${this.getScopeLabel(scope).toLowerCase()}...`,
+        `[${new Date().toLocaleTimeString('ru-RU')}] Отправляем команду на ${this.getScopeLabel(scope).toLowerCase()} (${reason})...`,
       ],
     });
 
     try {
       const payload = await startCrawl(scope);
+      const actualScope = payload?.scope || scope;
+      const status = payload?.status || 'started';
+      const isStarted = status === 'started';
       this.setState({
         crawlRunning: Boolean(payload?.running),
-        crawlScope: payload?.scope || scope,
-        crawlStatus: payload?.status || 'started',
+        crawlScope: actualScope,
+        crawlStatus: status,
+        pendingThreatRebuildScope: isStarted ? actualScope : null,
+        logLines: [
+          ...this.state.logLines,
+          status === 'already_running'
+            ? `[${new Date().toLocaleTimeString('ru-RU')}] Уже выполняется: ${this.getScopeLabel(actualScope)}`
+            : `[${new Date().toLocaleTimeString('ru-RU')}] Запущено: ${this.getScopeLabel(actualScope)}`,
+        ],
       });
       await this.refreshCrawlState();
       this.startLogPolling();
@@ -247,11 +535,13 @@ class Navbar extends Component {
 
   renderCrawlMenuItem = (scope) => {
     const label = this.getScopeLabel(scope);
+    const isBlockedByRunningTask = this.state.crawlRunning;
 
     return (
       <React.Fragment key={scope}>
         <Dropdown.Item
           href="!#"
+          disabled={isBlockedByRunningTask}
           onClick={(event) => {
             event.preventDefault();
             this.handleStartCrawl(scope);
@@ -290,9 +580,16 @@ class Navbar extends Component {
       crawlScope,
       crawlStatus,
       isLogsModalOpen,
+      isSettingsModalOpen,
+      isCrawlerConfigOpen,
+      isLightTheme,
+      uiDensityCompact,
+      autoOpenLogsOnStart,
+      notificationsEnabled,
       isLaunchingCrawl,
       logLines,
       logError,
+      crawlConfig,
     } = this.state;
 
     const canShowLogsButton = crawlRunning || logLines.length > 0 || Boolean(logError);
@@ -355,6 +652,23 @@ class Navbar extends Component {
                   <Dropdown.Divider />
                   <Dropdown.Item
                     href="!#"
+                    onClick={this.handleOpenCrawlerConfig}
+                    className="preview-item"
+                  >
+                    <div className="preview-thumbnail">
+                      <div className="preview-icon bg-dark rounded-circle">
+                        <i className="mdi mdi-tune text-light"></i>
+                      </div>
+                    </div>
+                    <div className="preview-item-content">
+                      <p className="preview-subject mb-1">
+                        Конфигуратор парсинга
+                      </p>
+                    </div>
+                  </Dropdown.Item>
+                  <Dropdown.Divider />
+                  <Dropdown.Item
+                    href="!#"
                     onClick={(event) => {
                       event.preventDefault();
                       this.handleStartCrawl('all');
@@ -400,7 +714,7 @@ class Navbar extends Component {
                 <Dropdown.Menu className="navbar-dropdown preview-list navbar-profile-dropdown-menu">
                   <h6 className="p-3 mb-0"><Trans>Профиль</Trans></h6>
                   <Dropdown.Divider />
-                  <Dropdown.Item href="!#" onClick={(evt) => evt.preventDefault()} className="preview-item">
+                  <Dropdown.Item href="!#" onClick={this.handleOpenSettings} className="preview-item">
                     <div className="preview-thumbnail">
                       <div className="preview-icon bg-dark rounded-circle">
                         <i className="mdi mdi-settings text-success"></i>
@@ -501,6 +815,225 @@ class Navbar extends Component {
               type="button"
               className="btn btn-outline-light"
               onClick={this.handleCloseLogs}
+            >
+              Закрыть
+            </button>
+          </Modal.Footer>
+        </Modal>
+
+        <Modal
+          show={isSettingsModalOpen}
+          onHide={this.handleCloseSettings}
+          centered
+        >
+          <Modal.Header className="bg-dark text-light border-secondary d-flex align-items-center">
+            <Modal.Title>Настройки приложения</Modal.Title>
+            <button
+              type="button"
+              className="close text-light ml-auto"
+              aria-label="Закрыть настройки"
+              onClick={this.handleCloseSettings}
+            >
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </Modal.Header>
+          <Modal.Body className="bg-dark text-light">
+            <div className="d-flex justify-content-between align-items-center py-2">
+              <div>
+                <h6 className="mb-1">Светлая тема</h6>
+                <small className="text-muted">Переключить интерфейс на светлую палитру</small>
+              </div>
+              <div className="custom-control custom-switch mb-0">
+                <input
+                  type="checkbox"
+                  className="custom-control-input"
+                  id="theme-light-switch"
+                  checked={isLightTheme}
+                  onChange={this.handleThemeToggle}
+                />
+                <label className="custom-control-label" htmlFor="theme-light-switch" />
+              </div>
+            </div>
+            <div className="d-flex justify-content-between align-items-center py-2 border-top border-secondary">
+              <div>
+                <h6 className="mb-1">Компактный режим интерфейса</h6>
+                <small className="text-muted">Уменьшить интервалы и высоту элементов</small>
+              </div>
+              <div className="custom-control custom-switch mb-0">
+                <input
+                  type="checkbox"
+                  className="custom-control-input"
+                  id="ui-density-switch"
+                  checked={uiDensityCompact}
+                  onChange={this.handleUiDensityToggle}
+                />
+                <label className="custom-control-label" htmlFor="ui-density-switch" />
+              </div>
+            </div>
+            <div className="d-flex justify-content-between align-items-center py-2 border-top border-secondary">
+              <div>
+                <h6 className="mb-1">Авто-открытие логов при запуске</h6>
+                <small className="text-muted">Сразу показывать окно логов после старта парсинга</small>
+              </div>
+              <div className="custom-control custom-switch mb-0">
+                <input
+                  type="checkbox"
+                  className="custom-control-input"
+                  id="logs-open-switch"
+                  checked={autoOpenLogsOnStart}
+                  onChange={this.handleAutoOpenLogsToggle}
+                />
+                <label className="custom-control-label" htmlFor="logs-open-switch" />
+              </div>
+            </div>
+            <div className="d-flex justify-content-between align-items-center py-2 border-top border-secondary">
+              <div>
+                <h6 className="mb-1">Служебные уведомления</h6>
+                <small className="text-muted">Показывать уведомления о статусе запуска и ошибок</small>
+              </div>
+              <div className="custom-control custom-switch mb-0">
+                <input
+                  type="checkbox"
+                  className="custom-control-input"
+                  id="notifications-switch"
+                  checked={notificationsEnabled}
+                  onChange={this.handleNotificationsToggle}
+                />
+                <label className="custom-control-label" htmlFor="notifications-switch" />
+              </div>
+            </div>
+          </Modal.Body>
+          <Modal.Footer className="bg-dark border-secondary">
+            <button
+              type="button"
+              className="btn btn-outline-light"
+              onClick={this.handleCloseSettings}
+            >
+              Закрыть
+            </button>
+          </Modal.Footer>
+        </Modal>
+
+        <Modal
+          show={isCrawlerConfigOpen}
+          onHide={this.handleCloseCrawlerConfig}
+          centered
+        >
+          <Modal.Header className="bg-dark text-light border-secondary d-flex align-items-center">
+            <Modal.Title>Конфигуратор парсинга</Modal.Title>
+            <button
+              type="button"
+              className="close text-light ml-auto"
+              aria-label="Закрыть конфигуратор"
+              onClick={this.handleCloseCrawlerConfig}
+            >
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </Modal.Header>
+          <Modal.Body className="bg-dark text-light">
+            <div className="mb-3">
+              <h6 className="mb-2">Выбор источников</h6>
+              <div className="d-flex flex-column">
+                <label className="custom-control custom-checkbox mb-2">
+                  <input
+                    type="checkbox"
+                    className="custom-control-input"
+                    checked={crawlConfig.sites}
+                    onChange={(event) => this.handleCrawlConfigChange('sites', event.target.checked)}
+                  />
+                  <span className="custom-control-label">Веб-сайты</span>
+                </label>
+                <label className="custom-control custom-checkbox mb-2">
+                  <input
+                    type="checkbox"
+                    className="custom-control-input"
+                    checked={crawlConfig.telegram}
+                    onChange={(event) => this.handleCrawlConfigChange('telegram', event.target.checked)}
+                  />
+                  <span className="custom-control-label">Телеграм каналы</span>
+                </label>
+                <label className="custom-control custom-checkbox mb-2">
+                  <input
+                    type="checkbox"
+                    className="custom-control-input"
+                    checked={crawlConfig.forums}
+                    onChange={(event) => this.handleCrawlConfigChange('forums', event.target.checked)}
+                  />
+                  <span className="custom-control-label">Форумы</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="border-top border-secondary pt-3 mb-3">
+              <h6 className="mb-2">Автоматизация парсинга</h6>
+              <label className="custom-control custom-switch mb-3">
+                <input
+                  type="checkbox"
+                  className="custom-control-input"
+                  id="auto-schedule-switch"
+                  checked={crawlConfig.autoScheduleEnabled}
+                  onChange={(event) =>
+                    this.handleCrawlConfigChange('autoScheduleEnabled', event.target.checked)
+                  }
+                />
+                <span className="custom-control-label">Включить автозапуск по расписанию</span>
+              </label>
+
+              <label className="mb-1">Интервал запуска</label>
+              <select
+                className="form-control text-light bg-dark border-secondary"
+                value={crawlConfig.intervalHours}
+                onChange={(event) =>
+                  this.handleCrawlConfigChange('intervalHours', Number(event.target.value))
+                }
+              >
+                <option value={1}>Каждый час</option>
+                <option value={6}>Каждые 6 часов</option>
+                <option value={12}>Каждые 12 часов</option>
+                <option value={24}>Каждые 24 часа</option>
+              </select>
+
+              <label className="custom-control custom-switch mt-3 mb-2">
+                <input
+                  type="checkbox"
+                  className="custom-control-input"
+                  id="crawl-idle-switch"
+                  checked={crawlConfig.onlyIfIdle}
+                  onChange={(event) => this.handleCrawlConfigChange('onlyIfIdle', event.target.checked)}
+                />
+                <span className="custom-control-label">Запускать только при простое системы</span>
+              </label>
+            </div>
+
+            <div className="border-top border-secondary pt-3">
+              <h6 className="mb-2">Дополнительно</h6>
+              <label className="custom-control custom-switch mb-0">
+                <input
+                  type="checkbox"
+                  className="custom-control-input"
+                  id="threat-rebuild-switch"
+                  checked={crawlConfig.rebuildThreatModelAfterCrawl}
+                  onChange={(event) =>
+                    this.handleCrawlConfigChange('rebuildThreatModelAfterCrawl', event.target.checked)
+                  }
+                />
+                <span className="custom-control-label">Обновлять model_threat после завершения</span>
+              </label>
+            </div>
+          </Modal.Body>
+          <Modal.Footer className="bg-dark border-secondary d-flex justify-content-between">
+            <button
+              type="button"
+              className="btn btn-outline-info"
+              onClick={() => this.runConfiguredCrawl('manual')}
+              disabled={isLaunchingCrawl || crawlRunning}
+            >
+              Запустить по конфигурации
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline-light"
+              onClick={this.handleCloseCrawlerConfig}
             >
               Закрыть
             </button>

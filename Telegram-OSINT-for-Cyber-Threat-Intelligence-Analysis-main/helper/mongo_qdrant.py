@@ -2,9 +2,6 @@ import logging
 import uuid
 from datetime import datetime
 from pymongo import MongoClient
-from qdrant_client import QdrantClient
-from qdrant_client.http import models as rest
-from openai import OpenAI
 from configs import (
     MONGODB_URI, MONGODB_COLLECTION, 
     QDRANT_URL, QDRANT_COLLECTION, 
@@ -16,8 +13,23 @@ mongo_client = MongoClient(MONGODB_URI)
 db = mongo_client.get_database()
 collection = db[MONGODB_COLLECTION]
 
-qdrant_client = QdrantClient(url=QDRANT_URL)
-openai_client = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
+try:
+    from qdrant_client import QdrantClient
+    from qdrant_client.http import models as rest
+    qdrant_client = QdrantClient(url=QDRANT_URL)
+except Exception as exc:
+    QdrantClient = None
+    rest = None
+    qdrant_client = None
+    logging.warning(f"Qdrant client unavailable, vector export disabled: {exc}")
+
+try:
+    from openai import OpenAI
+    openai_client = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
+except Exception as exc:
+    OpenAI = None
+    openai_client = None
+    logging.warning(f"OpenAI Python client unavailable, LLM classification disabled: {exc}")
 
 CLASSIFICATION_PROMPT = """
 You are a cybersecurity expert. Your task is to classify the provided text.
@@ -58,6 +70,15 @@ Text to classify:
 
 def classify_content(text: str):
     """Classifies the content using OpenAI LLM."""
+    if openai_client is None:
+        return {
+            "type": "news",
+            "category": None,
+            "subcategory": None,
+            "severity": None,
+            "country": "Global",
+            "reasoning": "OpenAI client unavailable; fallback to news",
+        }
     try:
         response = openai_client.chat.completions.create(
             model="openai/gpt-4o-mini", # Using a fast model for classification
@@ -75,6 +96,8 @@ def classify_content(text: str):
 
 def ensure_qdrant_collection():
     """Ensures that the Qdrant collection exists."""
+    if qdrant_client is None or rest is None:
+        return
     try:
         collections = qdrant_client.get_collections().collections
         exists = any(c.name == QDRANT_COLLECTION for c in collections)
@@ -89,6 +112,8 @@ def ensure_qdrant_collection():
 
 def get_embedding(text: str):
     """Generates embedding for the given text using OpenAI."""
+    if openai_client is None:
+        return None
     try:
         # Truncate text to avoid token limits
         truncated_text = text[:8000]
@@ -143,7 +168,7 @@ def save_to_mongo_and_qdrant(article_data: dict):
         text_for_embedding = f"{article_data['title']}. {article_data['text']}"
         vector = get_embedding(text_for_embedding)
         
-        if vector:
+        if vector and qdrant_client is not None and rest is not None:
             # Save to Qdrant
             ensure_qdrant_collection()
             qdrant_id = str(uuid.uuid4())

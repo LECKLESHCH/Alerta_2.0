@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { fetchAllArticles } from '../../api/articles';
+import { fetchAllModelThreats } from '../../api/modelThreats';
 import {
   getThreatCategoryLabel,
   getThreatSubcategoryLabel,
@@ -153,11 +153,7 @@ class Dropdowns extends Component {
     });
 
     try {
-      const { items } = await fetchAllArticles({
-        includeText: 1,
-      });
-
-      const allItems = Array.isArray(items) ? items : [];
+      const allItems = await fetchAllModelThreats();
 
       this.setState({
         allItems,
@@ -289,9 +285,8 @@ class Dropdowns extends Component {
     const filteredItems = threatItems.filter((item) => {
       const source = normalizeText(item.source);
       const collection = getCollectionName(item);
-      const isTelegram = collection === 'articles_tg' || isTelegramSource(source);
-      const isForum =
-        collection === 'articles_forum' || isForumSource(source);
+      const isTelegram = collection === 'model_threat_tg' || isTelegramSource(source);
+      const isForum = collection === 'model_threat_forum' || isForumSource(source);
 
       if (item.type !== 'threat') {
         return false;
@@ -792,15 +787,15 @@ class Dropdowns extends Component {
     const filteredThreatItems = this.getFilteredThreatItems();
     const telegramThreatItems = this.state.allItems.filter((item) => {
       const collection = getCollectionName(item);
-      return item.type === 'threat' && collection === 'articles_tg';
+      return item.type === 'threat' && collection === 'model_threat_tg';
     });
     const forumThreatItems = this.state.allItems.filter((item) => {
       const collection = getCollectionName(item);
-      return item.type === 'threat' && collection === 'articles_forum';
+      return item.type === 'threat' && collection === 'model_threat_forum';
     });
     const siteThreatItems = threatItems.filter((item) => {
       const collection = getCollectionName(item);
-      return collection === 'articles';
+      return collection === 'model_threat_web';
     });
 
     const sourceOptions = Array.from(

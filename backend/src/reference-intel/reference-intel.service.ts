@@ -204,6 +204,56 @@ export class ReferenceIntelService {
     private readonly referenceCveModel: Model<ReferenceCve>,
   ) {}
 
+  async listCves(query: {
+    page: number;
+    limit: number;
+    q?: string;
+    hasKev?: boolean;
+  }): Promise<{
+    items: ReferenceCve[];
+    meta: { page: number; limit: number; total: number; totalPages: number };
+  }> {
+    const filter: Record<string, unknown> = {};
+
+    if (typeof query.hasKev === 'boolean') {
+      filter.hasKev = query.hasKev;
+    }
+
+    if (query.q && query.q.trim()) {
+      const pattern = query.q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(pattern, 'i');
+      filter.$or = [
+        { cveId: regex },
+        { description: regex },
+        { vendors: { $in: [regex] } },
+        { products: { $in: [regex] } },
+        { cwes: { $in: [regex] } },
+      ];
+    }
+
+    const skip = (query.page - 1) * query.limit;
+    const [items, total] = await Promise.all([
+      this.referenceCveModel
+        .find(filter)
+        .sort({ publishedAt: -1, lastModifiedAt: -1, cveId: 1 })
+        .skip(skip)
+        .limit(query.limit)
+        .lean()
+        .exec(),
+      this.referenceCveModel.countDocuments(filter).exec(),
+    ]);
+
+    return {
+      items: items as ReferenceCve[],
+      meta: {
+        page: query.page,
+        limit: query.limit,
+        total,
+        totalPages: total === 0 ? 0 : Math.ceil(total / query.limit),
+      },
+    };
+  }
+
   async interpretThreat(
     input: ThreatInterpretationInput,
   ): Promise<ThreatInterpretationResult> {

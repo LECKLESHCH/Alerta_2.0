@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import { Doughnut } from 'react-chartjs-2';
 import { VectorMap } from 'react-jvectormap';
 import { API_ENDPOINTS } from '../../api/endpoints';
-import { fetchArticles } from '../../api/articles';
+import { fetchAllModelThreats } from '../../api/modelThreats';
 import { getThreatCategoryLabel } from '../../utils/threatLabels';
 
 function canRenderVectorMap() {
@@ -430,42 +430,14 @@ export class Dashboard extends Component {
     this.loadArticles();
   }
 
-  async fetchAllArticles() {
-    const pageSize = 200;
-    let page = 1;
-    let totalPages = 1;
-    const allArticles = [];
-
-    while (page <= totalPages) {
-      const { items, meta } = await fetchArticles({
-        page,
-        limit: pageSize,
-        includeText: 0,
-      });
-
-      if (Array.isArray(items) && items.length) {
-        allArticles.push(...items);
-      }
-
-      totalPages =
-        meta && Number.isInteger(meta.totalPages) && meta.totalPages > 0
-          ? meta.totalPages
-          : 1;
-
-      page += 1;
-    }
-
-    return allArticles;
-  }
-
   async loadArticles() {
     try {
-      const articles = await this.fetchAllArticles();
+      const articles = await fetchAllModelThreats();
       this.setState({ articles, loading: false, error: null });
     } catch (error) {
       this.setState({
         loading: false,
-        error: `Не удалось получить данные из backend (${API_ENDPOINTS.articles()}).`,
+        error: `Не удалось получить данные из backend (${API_ENDPOINTS.modelThreatsBySource('web')}).`,
       });
     }
   }
@@ -642,7 +614,7 @@ export class Dashboard extends Component {
               <div className="card-body">
                 <div className="d-flex flex-row justify-content-between">
                     <h4 className="card-title mb-1">Последние материалы</h4>
-                  <p className="text-muted mb-1">Backend /articles</p>
+                  <p className="text-muted mb-1">Backend /model-threats/*</p>
                 </div>
                 <div className="row">
                   <div className="col-12">

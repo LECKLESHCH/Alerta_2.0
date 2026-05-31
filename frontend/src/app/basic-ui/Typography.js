@@ -248,8 +248,10 @@ class Typography extends Component {
       const title = String(item.title || '').trim().toLowerCase();
       const text = String(item.text || '').trim();
       const collection = getCollectionName(item);
-      const isTelegram = collection === 'articles_tg' || isTelegramSource(source);
-      const isForum = collection === 'articles_forum' || isForumSource(source);
+      const isTelegram =
+        collection === 'model_threat_tg' || isTelegramSource(source);
+      const isForum =
+        collection === 'model_threat_forum' || isForumSource(source);
 
       if (item.type !== 'news' || isTelegram || isForum) {
         return false;
@@ -620,13 +622,16 @@ class Typography extends Component {
 
   render() {
     const telegramNewsItems = this.state.newsItems.filter(
-      (item) => item.type === 'news' && getCollectionName(item) === 'articles_tg',
+      (item) =>
+        item.type === 'news' && getCollectionName(item) === 'model_threat_tg',
     );
     const forumNewsItems = this.state.newsItems.filter(
-      (item) => item.type === 'news' && getCollectionName(item) === 'articles_forum',
+      (item) =>
+        item.type === 'news' &&
+        getCollectionName(item) === 'model_threat_forum',
     );
     const siteNewsItems = this.state.newsItems.filter((item) => {
-      return item.type === 'news' && getCollectionName(item) === 'articles';
+      return item.type === 'news' && getCollectionName(item) === 'model_threat_web';
     });
 
     const filteredNewsItems = this.getFilteredNewsItems();

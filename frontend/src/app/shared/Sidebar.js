@@ -133,7 +133,7 @@ class Sidebar extends Component {
                 <ul className="nav flex-column sub-menu">
                   <li className="nav-item"> <Link className={ this.isPathActive('/basic-ui/buttons') ? 'nav-link active' : 'nav-link' } to="/basic-ui/buttons"><Trans>База данных</Trans></Link></li>
                   <li className="nav-item"> <Link className={ this.isPathActive('/basic-ui/dropdowns') ? 'nav-link active' : 'nav-link' } to="/basic-ui/dropdowns"><Trans>Выявленные угрозы</Trans></Link></li>
-                  <li className="nav-item"> <Link className={ this.isPathActive('/basic-ui/typography') ? 'nav-link active' : 'nav-link' } to="/basic-ui/typography"><Trans>Новостные статьи</Trans></Link></li>
+                  <li className="nav-item"> <Link className={ this.isPathActive('/basic-ui/threat-bank') ? 'nav-link active' : 'nav-link' } to="/basic-ui/threat-bank"><Trans>Банк угроз</Trans></Link></li>
                 </ul>
               </div>
             </Collapse>
@@ -149,7 +149,7 @@ class Sidebar extends Component {
             <Collapse in={ this.state.formElementsMenuOpen }>
               <div>
                 <ul className="nav flex-column sub-menu">
-                  <li className="nav-item"> <Link className={ this.isPathActive('/form-elements/basic-elements') ? 'nav-link active' : 'nav-link' } to="/form-elements/basic-elements"><Trans>Паспорт КИИ</Trans></Link></li>
+                  <li className="nav-item"> <Link className={ this.isPathActive('/form-elements/basic-elements') ? 'nav-link active' : 'nav-link' } to="/form-elements/basic-elements"><Trans>Паспорт объекта КИИ</Trans></Link></li>
                   <li className="nav-item"> <Link className={ this.isPathActive('/form-elements/object-models') ? 'nav-link active' : 'nav-link' } to="/form-elements/object-models"><Trans>Список моделей</Trans></Link></li>
                 </ul>
               </div>

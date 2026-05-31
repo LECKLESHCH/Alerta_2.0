@@ -1,0 +1,166 @@
+{
+  "generated_at": "2026-05-04T11:18:38.512302+00:00",
+  "model": "openai/gpt-oss-20b:free",
+  "threads_total": 5,
+  "results": [
+    {
+      "thread": {
+        "source_id": "reddit_netsec",
+        "source_label": "Reddit /r/netsec",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "",
+        "thread_url": "",
+        "author": "",
+        "published_at": "2026-05-04T11:15:43.508747+00:00",
+        "body": "",
+        "context_messages": [],
+        "metadata": {
+          "fetch_error": "403 Client Error: Blocked for url: https://www.reddit.com/r/netsec/search.json?q=cve%20OR%20exploit%20OR%20ransomware%20OR%20breach%20OR%20malware&restrict_sr=1&sort=new&t=month&limit=2"
+        }
+      },
+      "prefilter": {
+        "passed": false,
+        "matched_keywords": [],
+        "negative_hits": [],
+        "prefilter_score": 0.0
+      },
+      "status": "skipped_by_prefilter"
+    },
+    {
+      "thread": {
+        "source_id": "reddit_cybersecurity",
+        "source_label": "Reddit /r/cybersecurity",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "Defender Flagged DigiCert Root Certs as Malware",
+        "thread_url": "https://www.reddit.com/r/cybersecurity/comments/1t3do6j/defender_flagged_digicert_root_certs_as_malware/",
+        "author": "Big-Engineering-9365",
+        "published_at": "2026-05-04T10:24:45+00:00",
+        "body": "",
+        "context_messages": [],
+        "metadata": {
+          "subreddit": "cybersecurity",
+          "score": 1,
+          "num_comments": 0
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "malware"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.167
+      },
+      "status": "llm_error",
+      "error": "cannot access local variable 'reasoning' where it is not associated with a value"
+    },
+    {
+      "thread": {
+        "source_id": "reddit_cybersecurity",
+        "source_label": "Reddit /r/cybersecurity",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "Another breach just hit Canvas (Instructure), and this one is worth a closer look.",
+        "thread_url": "https://www.reddit.com/r/cybersecurity/comments/1t3cra5/another_breach_just_hit_canvas_instructure_and/",
+        "author": "alexmemm",
+        "published_at": "2026-05-04T09:33:57+00:00",
+        "body": "Reported exposure includes: \\- Names, emails, student IDs \\- Private messages between students and professors \\- No passwords or financial data (so far) The more interesting risk isn’t the data alone, but the context. If attackers have: \\- real identities \\- institutional email addresses \\- actual message threads This creates a strong foundation for highly targeted phishing (e.g. replying within existing conversations or impersonating faculty with realistic context). This is the second incident in under a year, which raises questions about how EdTech platforms manage identity, access, and third-party integrations at scale.",
+        "context_messages": [],
+        "metadata": {
+          "subreddit": "cybersecurity",
+          "score": 3,
+          "num_comments": 1
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "breach",
+          "phishing"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.333
+      },
+      "status": "llm_error",
+      "error": "cannot access local variable 'reasoning' where it is not associated with a value"
+    },
+    {
+      "thread": {
+        "source_id": "stackexchange_security",
+        "source_label": "Information Security Stack Exchange",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "how to check usages of a class method in open source code",
+        "thread_url": "https://security.stackexchange.com/questions/279220/how-to-check-usages-of-a-class-method-in-open-source-code",
+        "author": "anonymous",
+        "published_at": "2024-10-21T14:51:19+00:00",
+        "body": "I detected in a codeline usage of a bouncy castle that is vulnerable to the cve CVE-2023-33201. The CVE seems to come from the guilty class X509LDAPCertStoreSpi.java , and in specific the method search() . In the codeline I am testing, there is no direct usage of this class or method. Now I want to see if the method X509LDAPCertStoreSpi.search() is used somewhere inside the bouncy castle to see if it is indirectly called. Any idea how to achieve this? and is this the right way to analyze exploitability?",
+        "context_messages": [],
+        "metadata": {
+          "site": "security.stackexchange",
+          "tags": [
+            "vulnerability",
+            "cve",
+            "opensource"
+          ],
+          "score": 0,
+          "answer_count": 1,
+          "is_answered": false
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "cve-",
+          "exploit",
+          "rce"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.5
+      },
+      "status": "llm_error",
+      "error": "429 Client Error: Too Many Requests for url: https://openrouter.ai/api/v1/chat/completions"
+    },
+    {
+      "thread": {
+        "source_id": "stackexchange_security",
+        "source_label": "Information Security Stack Exchange",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "How should a small security team prioritize CVEs when CVSS scores don't reflect real-world exploitability?",
+        "thread_url": "https://security.stackexchange.com/questions/286827/how-should-a-small-security-team-prioritize-cves-when-cvss-scores-dont-reflect",
+        "author": "defend.network",
+        "published_at": "2026-03-27T20:13:10+00:00",
+        "body": "We're a 3-person IT security team managing ~200 servers and endpoints. Our vulnerability scanner generates hundreds of findings per month. We currently prioritize by CVSS score, but we're finding this leads to poor outcomes: High CVSS vulnerabilities that have no known exploit in the wild consume our patching resources Medium CVSS vulnerabilities that are actively exploited (per CISA KEV) get delayed because they're \"medium\" We don't have budget for commercial threat intelligence to supplement CVSS with exploit probability data What free or low-cost methods exist to prioritize CVEs based on actual exploitability rather than theoretical CVSS severity? Specifically interested in: How to operationalize CISA KEV catalog into our patching workflow Whether EPSS (Exploit Prediction Scoring System) is mature enough to rely on How other small teams handle the gap between CVSS severity and real-world risk Any structured frameworks for risk-based vulnerability prioritization without commercial tools",
+        "context_messages": [],
+        "metadata": {
+          "site": "security.stackexchange",
+          "tags": [
+            "risk",
+            "cvss",
+            "vulnerability-management"
+          ],
+          "score": 0,
+          "answer_count": 0,
+          "is_answered": false
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "exploit",
+          "exploited",
+          "in the wild",
+          "rce",
+          "vulnerability"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.833
+      },
+      "status": "llm_error",
+      "error": "429 Client Error: Too Many Requests for url: https://openrouter.ai/api/v1/chat/completions"
+    }
+  ]
+}

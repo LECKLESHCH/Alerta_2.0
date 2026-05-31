@@ -1,0 +1,235 @@
+{
+  "generated_at": "2026-05-04T11:09:58.706618+00:00",
+  "model": "openai/gpt-oss-20b:free",
+  "threads_total": 4,
+  "results": [
+    {
+      "thread": {
+        "source_id": "reddit_netsec",
+        "source_label": "Reddit /r/netsec",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "High Fidelity Check for the cPanel Authentication Bypass (CVE-2026-41940)",
+        "thread_url": "https://www.reddit.com/r/netsec/comments/1szqnax/high_fidelity_check_for_the_cpanel_authentication/",
+        "author": "Mempodipper",
+        "published_at": "2026-04-30T09:01:20+00:00",
+        "body": "",
+        "context_messages": [],
+        "metadata": {
+          "subreddit": "netsec",
+          "score": 9,
+          "num_comments": 0
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "bypass",
+          "cve-"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.333
+      },
+      "status": "analyzed",
+      "normalized": {
+        "is_relevant": true,
+        "signal_kind": "vulnerability",
+        "type": "threat",
+        "russian_title": "Обнаружен обход аутентификации в cPanel (CVE-2026-41940)",
+        "russian_summary": "В cPanel выявлена уязвимость, позволяющая обойти механизм аутентификации и получить несанкционированный доступ к системе. Уязвимость получила номер CVE-2026-41940 и может быть использована злоумышленниками для дальнейшего продвижения в инфраструктуре.",
+        "russian_interpretation": "Аутентификационный bypass в cPanel представляет серьёзную угрозу, так как позволяет атакующим получить полный контроль над сервером без пароля. Это требует немедленного применения патча и пересмотра политик доступа.",
+        "category": "Уязвимости и эксплуатация",
+        "severity": "high",
+        "vulnerability_type": "0-day",
+        "country": "Global",
+        "cve_mentions": [
+          "CVE-2026-41940"
+        ],
+        "vendor_candidates": [
+          "cPanel"
+        ],
+        "product_candidates": [
+          "cPanel"
+        ],
+        "evidence_tokens": [
+          "Authentication Bypass",
+          "CVE-2026-41940"
+        ],
+        "confidence": 0.9,
+        "reasoning_ru": "Обсуждение содержит конкретную уязвимость с номером CVE и описанием обхода аутентификации, что соответствует критериям релевантного сигнала угрозы."
+      }
+    },
+    {
+      "thread": {
+        "source_id": "reddit_netsec",
+        "source_label": "Reddit /r/netsec",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "Copy Fail exploit lets 732 bytes hijack Linux systems and quietly grab root",
+        "thread_url": "https://www.reddit.com/r/netsec/comments/1szduu3/copy_fail_exploit_lets_732_bytes_hijack_linux/",
+        "author": "OkReport5065",
+        "published_at": "2026-04-29T22:31:20+00:00",
+        "body": "This new Linux kernel bug called Copy Fail (CVE-2026-31431) is kinda terrifying because it’s not complicated at all. A normal user can run a tiny 732-byte script and get root, no race conditions or luck required, and it works across major distros like Ubuntu, RHEL, and SUSE. The exploit quietly modifies the page cache instead of the file on disk, so integrity checks don’t catch it, but the kernel still executes the tampered version in memory. Even worse, since the page cache is shared, it can potentially cross container boundaries too. Patch ASAP if your distro hasn’t already, because this one feels way too reliable…",
+        "context_messages": [
+          "Linking the website as I actually read the post: https://copy.fail/ Security folks smarter than me, is it me or this much more wild than it even seems?",
+          "since OP, the linked article, and the copy.fail site all sloppily neglected to mention which kernel versions are actually vulnerable: https://lore.kernel.org/linux-cve-announce/2026042214-CVE-2026-31431-3d65@gregkh/T/ > Affected and fixed versions > =========================== > > Issue introduced in 4.14 with commit 72548b093ee38a6d4f2a19e6ef1948ae05c181f7 and fixed in 6.18.22 with commit fafe0fa2995a0f7073c1c358d7d3145bcc9aedd8 > Issue introduced in 4.14 with commit 72548b093ee38a6d4f2a19e6ef1948ae05c181f7 and fixed in 6.19.12 with commit ce42ee423e58dffa5ec03524054c9d8bfd4f6237 > Issue introduced in 4.14 with commit 72548b093ee38a6d4f2a19e6ef1948ae05c181f7 and fixed in 7.0 with commit a664bf3d603dc3bdcf9ae47cc21e0daec706d7a5",
+          "For anyone looking at the detections side of this, patching is obviously the priority one, but if you need visibility into whether this was exploited before you patched. Traditional FIM won't help since it never writes to disk. I put together a detection toolkit with auditd rules for AF_ALG socket creation. Also includes Sigma and YARA rules. https://github.com/kadir/copy-fail-CVE-2026-31431-IOC"
+        ],
+        "metadata": {
+          "subreddit": "netsec",
+          "score": 301,
+          "num_comments": 66
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "cve-",
+          "exploit",
+          "exploited"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.5
+      },
+      "status": "analyzed",
+      "normalized": {
+        "is_relevant": true,
+        "signal_kind": "vulnerability",
+        "type": "threat",
+        "russian_title": "Эксплойт Copy Fail позволяет получить root с 732‑байтовым скриптом",
+        "russian_summary": "Уязвимость CVE‑2026‑31431 в ядре Linux позволяет обычному пользователю, запустив 732‑байтовый скрипт, получить права root без гонок и случайностей. Эксплойт меняет кэш страниц, а не файл на диске, поэтому традиционные проверки целостности не обнаруживают его. Поддерживаются все основные дистрибутивы, включая Ubuntu, RHEL и SUSE, а также возможен переход через границы контейнеров.",
+        "russian_interpretation": "Эксплойт представляет серьёзную угрозу для всех систем, использующих уязвимые версии ядра. Поскольку он не требует сложных условий, любой пользователь может его применить, а обнаружение затруднено из‑за работы в памяти. Необходимо немедленно применить патч и включить мониторинг AF_ALG сокетов.",
+        "category": "Уязвимости и эксплуатация",
+        "severity": "high",
+        "vulnerability_type": "0-day",
+        "country": "Global",
+        "cve_mentions": [
+          "CVE-2026-31431"
+        ],
+        "vendor_candidates": null,
+        "product_candidates": null,
+        "evidence_tokens": [
+          "CVE-2026-31431",
+          "root",
+          "732-byte",
+          "page cache",
+          "AF_ALG"
+        ],
+        "confidence": 0.95,
+        "reasoning_ru": "В сообщении описана конкретная уязвимость CVE‑2026‑31431, её эксплуатация приводит к получению root, а также упоминается влияние на контейнеры и необходимость патча. Это соответствует критериям релевантного сигнала угрозы."
+      }
+    },
+    {
+      "thread": {
+        "source_id": "reddit_cybersecurity",
+        "source_label": "Reddit /r/cybersecurity",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "Defender Flagged DigiCert Root Certs as Malware",
+        "thread_url": "https://www.reddit.com/r/cybersecurity/comments/1t3do6j/defender_flagged_digicert_root_certs_as_malware/",
+        "author": "Big-Engineering-9365",
+        "published_at": "2026-05-04T10:24:45+00:00",
+        "body": "",
+        "context_messages": [],
+        "metadata": {
+          "subreddit": "cybersecurity",
+          "score": 1,
+          "num_comments": 0
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "malware"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.167
+      },
+      "status": "analyzed",
+      "normalized": {
+        "is_relevant": true,
+        "signal_kind": "discussion",
+        "type": "news",
+        "russian_title": "Microsoft Defender ошибочно пометил корневые сертификаты DigiCert как вредоносные",
+        "russian_summary": "Microsoft Defender обнаружил корневые сертификаты DigiCert и пометил их как вредоносные, что вызвало тревогу у пользователей. В ответ Microsoft подтвердил, что это ложный срабатывание и не представляет реальной угрозы. Пользователи могут продолжать использовать сертификаты без опасений.",
+        "russian_interpretation": "Сигнал указывает на ложную тревогу, но важно знать, что это не реальная угроза, а ошибка классификации, что может влиять на доверие к системе безопасности.",
+        "category": "Облачная безопасность",
+        "severity": "low",
+        "vulnerability_type": null,
+        "country": "Global",
+        "cve_mentions": [],
+        "vendor_candidates": [
+          "Microsoft",
+          "DigiCert"
+        ],
+        "product_candidates": [
+          "Microsoft Defender"
+        ],
+        "evidence_tokens": [
+          "Microsoft Defender",
+          "корневые сертификаты",
+          "DigiCert",
+          "ложный срабатывание"
+        ],
+        "confidence": 0.95,
+        "reasoning_ru": "Обсуждение конкретного случая ложного срабатывания, подтвержденного Microsoft, относится к новостному сигналу о безопасности. Это релевантно, но не представляет реальной угрозы, поэтому классификация как news с низкой тяжестью."
+      }
+    },
+    {
+      "thread": {
+        "source_id": "reddit_cybersecurity",
+        "source_label": "Reddit /r/cybersecurity",
+        "source_type": "forum",
+        "language": "en",
+        "thread_title": "Another breach just hit Canvas (Instructure), and this one is worth a closer look.",
+        "thread_url": "https://www.reddit.com/r/cybersecurity/comments/1t3cra5/another_breach_just_hit_canvas_instructure_and/",
+        "author": "alexmemm",
+        "published_at": "2026-05-04T09:33:57+00:00",
+        "body": "Reported exposure includes: \\- Names, emails, student IDs \\- Private messages between students and professors \\- No passwords or financial data (so far) The more interesting risk isn’t the data alone, but the context. If attackers have: \\- real identities \\- institutional email addresses \\- actual message threads This creates a strong foundation for highly targeted phishing (e.g. replying within existing conversations or impersonating faculty with realistic context). This is the second incident in under a year, which raises questions about how EdTech platforms manage identity, access, and third-party integrations at scale.",
+        "context_messages": [],
+        "metadata": {
+          "subreddit": "cybersecurity",
+          "score": 3,
+          "num_comments": 1
+        }
+      },
+      "prefilter": {
+        "passed": true,
+        "matched_keywords": [
+          "breach",
+          "phishing"
+        ],
+        "negative_hits": [],
+        "prefilter_score": 0.333
+      },
+      "status": "analyzed",
+      "normalized": {
+        "is_relevant": true,
+        "signal_kind": "incident",
+        "type": "threat",
+        "russian_title": "Новая утечка данных в Canvas (Instructure)",
+        "russian_summary": "В результате взлома Canvas раскрылись имена, адреса электронной почты, студенческие ID и частные сообщения между студентами и преподавателями. Хотя пароли и финансовые данные не были получены, информация предоставляет злоумышленникам основу для целевых фишинговых атак, имитируя реальные коммуникации.",
+        "russian_interpretation": "Для аналитика важно понять, что утечка предоставляет контекст для социальной инженерии, а не только данные. Это повышает риск фишинга и подделки учёных, особенно в образовательных учреждениях.",
+        "category": "Утечки данных",
+        "severity": "high",
+        "vulnerability_type": null,
+        "country": "Global",
+        "cve_mentions": [],
+        "vendor_candidates": [
+          "Instructure"
+        ],
+        "product_candidates": [
+          "Canvas"
+        ],
+        "evidence_tokens": [
+          "breach",
+          "phishing",
+          "Canvas",
+          "Instructure"
+        ],
+        "confidence": 0.9,
+        "reasoning_ru": "Обсуждение описывает конкретную утечку данных с потенциальным последующим фишингом, что соответствует критериям релевантного сигнала угрозы."
+      }
+    }
+  ]
+}
